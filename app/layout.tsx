@@ -1,8 +1,18 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
+import { Roboto_Mono as FontSans } from "next/font/google";
 
-const inter = Inter({ subsets: ["latin"] });
+import { ThemeProvider } from "@/providers/theme-provider";
+import { NavigationBar } from "@/components/navigation-bar";
+
+import { cn } from "@/lib/utils";
+
+import "./globals.css";
+import { Footer } from "@/components/footer";
+
+const fontSans = FontSans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+})
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -16,7 +26,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>{children}</body>
+      <head />
+      <body
+        className={cn(
+          "min-h-screen bg-background font-sans antialiased",
+          fontSans.variable
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NavigationBar />
+          <main className="pb-16"> {/* Add padding bottom here */}
+            {children}
+          </main>
+          <Footer />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }
