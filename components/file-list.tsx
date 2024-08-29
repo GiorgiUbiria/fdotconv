@@ -185,14 +185,25 @@ export function FileList({ files, setFiles }: FileListProps) {
     files.forEach((file) => {
       const fileState = conversionStates[file.name];
       if (fileState?.convertedUrl) {
-        const link = document.createElement("a");
-        link.href = fileState.convertedUrl;
-        link.download = `${file.name.split(".")[0]}.${
-          fileState.selectedFormat
-        }`;
-        link.click();
+        downloadFile(fileState.convertedUrl, `${file.name.split(".")[0]}.${fileState.selectedFormat}`);
       }
     });
+  };
+
+  const downloadFile = (url: string, fileName: string) => {
+    fetch(url)
+      .then(response => response.blob())
+      .then(blob => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      })
+      .catch(error => console.error('Download failed:', error));
   };
 
   return (
@@ -288,14 +299,7 @@ export function FileList({ files, setFiles }: FileListProps) {
                       ) : fileState.convertedUrl ? (
                         <DownloadIcon
                           className="w-4 h-4 text-blue-500 hover:cursor-pointer hover:text-blue-600"
-                          onClick={() => {
-                            const link = document.createElement("a");
-                            link.href = fileState.convertedUrl || "";
-                            link.download = `${file.name.split(".")[0]}.${
-                              fileState.selectedFormat
-                            }`;
-                            link.click();
-                          }}
+                          onClick={() => downloadFile(fileState.convertedUrl!, `${file.name.split(".")[0]}.${fileState.selectedFormat}`)}
                         />
                       ) : fileState.conversionFailed ? (
                         <RefreshCwIcon

@@ -10,7 +10,10 @@ export function NavigationBar() {
             className="flex items-center space-x-3 rtl:space-x-reverse"
           >
             <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
-              Flowbite
+              <span className="text-blue-600 dark:text-blue-400">F</span>
+              <span className="text-gray-800 dark:text-gray-200">.</span>
+              <span className="text-green-600 dark:text-green-400">Conv</span>
+              <span className="text-xs align-top ml-1 text-red-500 dark:text-red-400 animate-pulse">β</span>
             </span>
           </a>
           <div className="flex md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
