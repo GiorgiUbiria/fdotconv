@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export async function loadFfmpeg(): Promise<FFmpeg> {
   const ffmpeg = new FFmpeg();
-  const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.2/dist/umd";
+  const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
 
   await ffmpeg.load({
     coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
@@ -51,10 +51,6 @@ export async function convertFile(file: File, to: string) {
     await ffmpegClient.exec([
       "-i",
       inputFileName,
-      "-vf",
-      "format=yuv420p",
-      "-q:v",
-      "2",
       outputFileName,
     ]);
     console.log("FFmpeg command executed");
