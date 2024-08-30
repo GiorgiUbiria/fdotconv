@@ -21,6 +21,7 @@ type ConversionState = {
   selectedFormat: string;
   convertedUrl: string | null;
   conversionFailed: boolean;
+  retryCount: number;
 };
 
 type ConversionStates = {
@@ -33,6 +34,7 @@ type Action =
   | { type: "SET_FORMAT"; payload: { fileName: string; format: string } }
   | { type: "DELETE_FILE"; payload: { fileName: string } }
   | { type: "SET_CONVERSION_FAILED"; payload: { fileName: string } }
+  | { type: "INCREMENT_RETRY_COUNT"; payload: { fileName: string } }
   | { type: "RESET" };
 
 const initialState: ConversionStates = {};
@@ -59,6 +61,7 @@ function conversionReducer(
           isConverting: false,
           convertedUrl: action.payload.url,
           conversionFailed: action.payload.url === null,
+          retryCount: 0,
         },
       };
     case "SET_FORMAT":
@@ -80,6 +83,14 @@ function conversionReducer(
           ...state[action.payload.fileName],
           isConverting: false,
           conversionFailed: true,
+        },
+      };
+    case "INCREMENT_RETRY_COUNT":
+      return {
+        ...state,
+        [action.payload.fileName]: {
+          ...state[action.payload.fileName],
+          retryCount: (state[action.payload.fileName]?.retryCount || 0) + 1,
         },
       };
     case "RESET":
@@ -120,22 +131,30 @@ export function FileList({ files, setFiles }: FileListProps) {
       dispatch({ type: "SET_CONVERTING", payload: { fileName: file.name } });
 
       const format = conversionStates[file.name]?.selectedFormat || "jpeg";
-      const conversionPromise = convertFile(file, format)
-        .then((convertedFile) => {
+      const convertWithRetry = async (retryCount: number): Promise<string | null> => {
+        try {
+          const convertedFile = await convertFile(file, format);
           dispatch({
             type: "SET_CONVERTED",
             payload: { fileName: file.name, url: convertedFile || null },
           });
           return convertedFile || null;
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error("Conversion failed:", error);
-          dispatch({
-            type: "SET_CONVERSION_FAILED",
-            payload: { fileName: file.name },
-          });
-          return null;
-        })
+          if (retryCount < 2) {
+            dispatch({ type: "INCREMENT_RETRY_COUNT", payload: { fileName: file.name } });
+            return convertWithRetry(retryCount + 1);
+          } else {
+            dispatch({
+              type: "SET_CONVERSION_FAILED",
+              payload: { fileName: file.name },
+            });
+            return null;
+          }
+        }
+      };
+
+      const conversionPromise = convertWithRetry(0)
         .finally(() => {
           delete conversionPromises.current[file.name];
         });
@@ -179,7 +198,7 @@ export function FileList({ files, setFiles }: FileListProps) {
 
   const someConversionsFailed =
     files.length > 0 &&
-    files.some((file) => conversionStates[file.name]?.conversionFailed);
+    files.some((file) => conversionStates[file.name]?.conversionFailed && conversionStates[file.name]?.retryCount >= 2);
 
   const handleDownloadAll = () => {
     files.forEach((file) => {
@@ -258,6 +277,7 @@ export function FileList({ files, setFiles }: FileListProps) {
                 selectedFormat: "jpeg",
                 convertedUrl: null,
                 conversionFailed: false,
+                retryCount: 0,
               };
 
               return (
@@ -301,7 +321,7 @@ export function FileList({ files, setFiles }: FileListProps) {
                           className="w-4 h-4 text-blue-500 hover:cursor-pointer hover:text-blue-600"
                           onClick={() => downloadFile(fileState.convertedUrl!, `${file.name.split(".")[0]}.${fileState.selectedFormat}`)}
                         />
-                      ) : fileState.conversionFailed ? (
+                      ) : fileState.conversionFailed && fileState.retryCount >= 2 ? (
                         <RefreshCwIcon
                           className="w-4 h-4 text-red-500 hover:cursor-pointer hover:text-red-600"
                           onClick={() => handleConvert(file)}
