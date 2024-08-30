@@ -1,6 +1,7 @@
 "use client";
 
 import { convertFile } from "@/lib/utils";
+import { useConversionStore } from "@/lib/conversionStore";
 import {
   FileIcon,
   ImageIcon,
@@ -8,117 +9,65 @@ import {
   CloverIcon,
   DownloadIcon,
   RefreshCwIcon,
+  PlusIcon,
 } from "lucide-react";
-import { useReducer, useCallback, useRef, useState } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
+import { toast } from "sonner";
 
 type FileListProps = {
   files: File[];
   setFiles: (files: File[]) => void;
 };
 
-type ConversionState = {
-  isConverting: boolean;
-  selectedFormat: string;
-  convertedUrl: string | null;
-  conversionFailed: boolean;
-  retryCount: number;
-};
-
-type ConversionStates = {
-  [key: string]: ConversionState;
-};
-
-type Action =
-  | { type: "SET_CONVERTING"; payload: { fileName: string } }
-  | { type: "SET_CONVERTED"; payload: { fileName: string; url: string | null } }
-  | { type: "SET_FORMAT"; payload: { fileName: string; format: string } }
-  | { type: "DELETE_FILE"; payload: { fileName: string } }
-  | { type: "SET_CONVERSION_FAILED"; payload: { fileName: string } }
-  | { type: "INCREMENT_RETRY_COUNT"; payload: { fileName: string } }
-  | { type: "RESET" };
-
-const initialState: ConversionStates = {};
-
-function conversionReducer(
-  state: ConversionStates,
-  action: Action
-): ConversionStates {
-  switch (action.type) {
-    case "SET_CONVERTING":
-      return {
-        ...state,
-        [action.payload.fileName]: {
-          ...state[action.payload.fileName],
-          isConverting: true,
-          conversionFailed: false,
-        },
-      };
-    case "SET_CONVERTED":
-      return {
-        ...state,
-        [action.payload.fileName]: {
-          ...state[action.payload.fileName],
-          isConverting: false,
-          convertedUrl: action.payload.url,
-          conversionFailed: action.payload.url === null,
-          retryCount: 0,
-        },
-      };
-    case "SET_FORMAT":
-      return {
-        ...state,
-        [action.payload.fileName]: {
-          ...state[action.payload.fileName],
-          selectedFormat: action.payload.format,
-        },
-      };
-    case "DELETE_FILE":
-      const newState = { ...state };
-      delete newState[action.payload.fileName];
-      return newState;
-    case "SET_CONVERSION_FAILED":
-      return {
-        ...state,
-        [action.payload.fileName]: {
-          ...state[action.payload.fileName],
-          isConverting: false,
-          conversionFailed: true,
-        },
-      };
-    case "INCREMENT_RETRY_COUNT":
-      return {
-        ...state,
-        [action.payload.fileName]: {
-          ...state[action.payload.fileName],
-          retryCount: (state[action.payload.fileName]?.retryCount || 0) + 1,
-        },
-      };
-    case "RESET":
-      return {};
-    default:
-      return state;
+const getConversionOptions = (fileType: string) => {
+  if (fileType.startsWith("image/")) {
+    return ["jpeg", "png", "webp", "avif"];
+  } else if (fileType.startsWith("video/")) {
+    return ["mp4", "webm", "avi", "mov", "mp3", "wav", "aac", "ogg"];
+  } else if (fileType.startsWith("audio/")) {
+    return ["mp3", "wav", "ogg", "aac"];
   }
-}
+  return [];
+};
 
 export function FileList({ files, setFiles }: FileListProps) {
-  const [conversionStates, dispatch] = useReducer(
-    conversionReducer,
-    initialState
-  );
+  const {
+    conversionStates,
+    setConverting,
+    setConverted,
+    setFormat,
+    deleteFile,
+    setConversionFailed,
+    incrementRetryCount,
+    initializeFile,
+    reset,
+  } = useConversionStore();
   const [isConvertingAll, setIsConvertingAll] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const conversionPromises = useRef<{ [key: string]: Promise<string | null> }>(
     {}
   );
 
+  useEffect(() => {
+    files.forEach((file) => {
+      if (!conversionStates[file.name]) {
+        const conversionOptions = getConversionOptions(file.type);
+        initializeFile(file.name, file.type, conversionOptions[0] || "");
+      }
+    });
+  }, [files, conversionStates, initializeFile]);
+
   const handleDelete = (file: File) => {
     setFiles(files.filter((f) => f !== file));
-    dispatch({ type: "DELETE_FILE", payload: { fileName: file.name } });
+    deleteFile(file.name);
     delete conversionPromises.current[file.name];
+    toast.success(`File ${file.name} deleted successfully`);
   };
 
   const handleFormatChange = (file: File, format: string) => {
-    dispatch({ type: "SET_FORMAT", payload: { fileName: file.name, format } });
+    setFormat(file.name, format);
+    toast.info(`Format for ${file.name} changed to ${format.toUpperCase()}`);
   };
 
   const handleConvert = useCallback(
@@ -128,27 +77,25 @@ export function FileList({ files, setFiles }: FileListProps) {
         return existingPromise;
       }
 
-      dispatch({ type: "SET_CONVERTING", payload: { fileName: file.name } });
+      setConverting(file.name);
+      toast.loading(`Converting ${file.name}...`);
 
-      const format = conversionStates[file.name]?.selectedFormat || "jpeg";
+      const format = conversionStates[file.name]?.selectedFormat || getConversionOptions(file.type)[0];
       const convertWithRetry = async (retryCount: number): Promise<string | null> => {
         try {
           const convertedFile = await convertFile(file, format);
-          dispatch({
-            type: "SET_CONVERTED",
-            payload: { fileName: file.name, url: convertedFile || null },
-          });
+          setConverted(file.name, convertedFile || null);
+          toast.success(`${file.name} converted successfully`);
           return convertedFile || null;
         } catch (error) {
           console.error("Conversion failed:", error);
           if (retryCount < 2) {
-            dispatch({ type: "INCREMENT_RETRY_COUNT", payload: { fileName: file.name } });
+            incrementRetryCount(file.name);
+            toast.error(`Conversion failed for ${file.name}. Retrying...`);
             return convertWithRetry(retryCount + 1);
           } else {
-            dispatch({
-              type: "SET_CONVERSION_FAILED",
-              payload: { fileName: file.name },
-            });
+            setConversionFailed(file.name);
+            toast.error(`Conversion failed for ${file.name} after multiple attempts`);
             return null;
           }
         }
@@ -162,34 +109,35 @@ export function FileList({ files, setFiles }: FileListProps) {
       conversionPromises.current[file.name] = conversionPromise;
       return conversionPromise;
     },
-    [conversionStates]
+    [conversionStates, setConverting, setConverted, incrementRetryCount, setConversionFailed]
   );
 
   const handleConvertAll = useCallback(() => {
     setIsConvertingAll(true);
+    toast.loading("Converting all files...");
     const allConversionPromises = files.map((file) => handleConvert(file));
     Promise.all(allConversionPromises)
       .then((results) => {
         console.log("All conversions completed");
         files.forEach((file, index) => {
-          dispatch({
-            type: "SET_CONVERTED",
-            payload: { fileName: file.name, url: results[index] },
-          });
+          setConverted(file.name, results[index]);
         });
+        toast.success("All files converted successfully");
       })
       .catch((error) => {
         console.error("Error during batch conversion:", error);
+        toast.error("Error during batch conversion");
       })
       .finally(() => {
         setIsConvertingAll(false);
       });
-  }, [files, handleConvert]);
+  }, [files, handleConvert, setConverted]);
 
   const handleDeleteAll = () => {
     setFiles([]);
-    dispatch({ type: "RESET" });
+    reset();
     conversionPromises.current = {};
+    toast.success("All files deleted");
   };
 
   const allConversionsComplete =
@@ -207,6 +155,7 @@ export function FileList({ files, setFiles }: FileListProps) {
         downloadFile(fileState.convertedUrl, `${file.name.split(".")[0]}.${fileState.selectedFormat}`);
       }
     });
+    toast.success("All converted files downloaded");
   };
 
   const downloadFile = (url: string, fileName: string) => {
@@ -214,21 +163,59 @@ export function FileList({ files, setFiles }: FileListProps) {
       .then(response => response.blob())
       .then(blob => {
         const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = blobUrl;
         link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
+        toast.success(`${fileName} downloaded successfully`);
       })
-      .catch(error => console.error('Download failed:', error));
+      .catch(error => {
+        console.error("Download failed:", error);
+        toast.error(`Failed to download ${fileName}`);
+      });
+  };
+
+  const handleAddFiles = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files) {
+      const newFiles = Array.from(event.target.files);
+      const totalFiles = [...files, ...newFiles];
+      if (totalFiles.length > 5) {
+        toast.error("Maximum 5 files allowed", {
+          description: "Please remove some files before adding more.",
+        });
+        return;
+      }
+      setFiles(totalFiles);
+      toast.success(`${newFiles.length} file(s) added successfully`);
+    }
   };
 
   return (
     <div className="w-full">
       <h1 className="text-2xl font-bold mb-4">File List</h1>
       <div className="flex flex-wrap justify-between mb-4 gap-2">
+        {files.length < 5 && (
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleAddFiles}
+              multiple
+              accept="image/*,video/*,audio/*"
+              className="hidden"
+            />
+            <button
+              className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <PlusIcon className="w-4 h-4 inline mr-2" />
+              Add Files
+            </button>
+          </>
+        )}
         <button
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
           onClick={handleConvertAll}
@@ -272,13 +259,8 @@ export function FileList({ files, setFiles }: FileListProps) {
           </thead>
           <tbody>
             {files.map((file) => {
-              const fileState = conversionStates[file.name] || {
-                isConverting: false,
-                selectedFormat: "jpeg",
-                convertedUrl: null,
-                conversionFailed: false,
-                retryCount: 0,
-              };
+              const fileState = conversionStates[file.name];
+              if (!fileState) return null;
 
               return (
                 <tr key={file.name} className="border-b">
@@ -303,9 +285,11 @@ export function FileList({ files, setFiles }: FileListProps) {
                       onChange={(e) => handleFormatChange(file, e.target.value)}
                       disabled={fileState.isConverting}
                     >
-                      <option value="jpeg">JPEG</option>
-                      <option value="png">PNG</option>
-                      <option value="webp">WEBP</option>
+                      {getConversionOptions(fileState.fileType).map((format) => (
+                        <option key={format} value={format}>
+                          {format.toUpperCase()}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td className="px-4 py-2">
