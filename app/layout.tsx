@@ -40,7 +40,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <NavigationBar />
-          <main className="pb-16"> {/* Add padding bottom here */}
+          <main>
             {children}
           </main>
           <Footer />

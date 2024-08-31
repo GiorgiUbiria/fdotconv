@@ -8,7 +8,7 @@ export function Converter() {
   const [files, setFiles] = useState<File[]>([]);
 
   return (
-    <div>
+    <div className="w-full max-w-6xl px-4">
       {files.length > 0 ? (
         <FileList files={files} setFiles={setFiles} />
       ) : (
