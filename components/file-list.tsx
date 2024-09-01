@@ -1,6 +1,6 @@
 "use client";
 
-import { convertFile } from "@/lib/utils";
+import { convertFile, convertVideoFile } from "@/lib/utils";
 import { useConversionStore } from "@/providers/conversion-store-provider";
 import {
   FileIcon,
@@ -33,6 +33,9 @@ export function FileList({ files }: FileListProps) {
   } = useConversionStore((state) => state);
   const [isConvertingAll, setIsConvertingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [downloadTimers, setDownloadTimers] = useState<{
+    [key: string]: number;
+  }>({});
 
   const conversionPromises = useRef<{ [key: string]: Promise<string | null> }>(
     {}
@@ -44,7 +47,6 @@ export function FileList({ files }: FileListProps) {
         const conversionOptions = getConversionOptions(file.type);
         initializeFile(file, conversionOptions[0] || "");
       } else if (!conversionStates[file.name].file) {
-        // If we have state but no file object, update the state with the new file object
         initializeFile(file, conversionStates[file.name].selectedFormat);
       }
     });
@@ -86,9 +88,27 @@ export function FileList({ files }: FileListProps) {
       const format =
         conversionStates[file.name]?.selectedFormat ||
         getConversionOptions(file.type)[0];
-      const conversionPromise = convertFile(file, format)
+
+      const conversionPromise = file.type.startsWith("video/")
+        ? convertVideoFile(file, format)
+        : convertFile(file, format);
+
+      conversionPromises.current[file.name] = conversionPromise
         .then((convertedFile) => {
           setConverted(file.name, convertedFile || null);
+          if (file.type.startsWith("video/")) {
+            setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
+            const timer = setInterval(() => {
+              setDownloadTimers((prev) => {
+                const newTime = prev[file.name] - 1;
+                if (newTime <= 0) {
+                  clearInterval(timer);
+                  return { ...prev, [file.name]: 0 };
+                }
+                return { ...prev, [file.name]: newTime };
+              });
+            }, 1000);
+          }
           return convertedFile || null;
         })
         .catch((error) => {
@@ -101,8 +121,8 @@ export function FileList({ files }: FileListProps) {
           toast.dismiss(`converting-${file.name}`);
           toast.success(`Conversion complete for ${file.name}`);
         });
-      conversionPromises.current[file.name] = conversionPromise;
-      return conversionPromise;
+
+      return conversionPromises.current[file.name];
     },
     [conversionStates, setConverting, setConverted, setConversionFailed]
   );
@@ -358,17 +378,35 @@ export function FileList({ files }: FileListProps) {
                       {fileState.isConverting ? (
                         <CloverIcon className="w-5 h-5 text-yellow-500 animate-spin" />
                       ) : fileState.convertedUrl ? (
-                        <DownloadIcon
-                          className="w-5 h-5 text-blue-500 hover:text-blue-600 cursor-pointer transition-colors duration-200"
-                          onClick={() =>
-                            downloadFile(
-                              fileState.convertedUrl!,
-                              `${file.name.split(".")[0]}.${
-                                fileState.selectedFormat
-                              }`
-                            )
-                          }
-                        />
+                        <div className="flex items-center">
+                          {file.type.startsWith("video/") &&
+                          downloadTimers[file.name] > 0 ? (
+                            <>
+                              <DownloadIcon
+                                className="w-5 h-5 text-blue-500 hover:text-blue-600 cursor-pointer transition-colors duration-200 mr-2"
+                                onClick={() =>
+                                  downloadFile(
+                                    fileState.convertedUrl!,
+                                    `${file.name.split(".")[0]}.${
+                                      fileState.selectedFormat
+                                    }`
+                                  )
+                                }
+                              />
+                              <span className="text-sm text-blue-500">
+                                {downloadTimers[file.name]}s
+                              </span>
+                            </>
+                          ) : (
+                            <RefreshCwIcon
+                              className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer transition-colors duration-200"
+                              onClick={() => {
+                                resetConversionState(file.name);
+                                handleConvert(file);
+                              }}
+                            />
+                          )}
+                        </div>
                       ) : fileState.conversionFailed ? (
                         <RefreshCwIcon
                           className="w-5 h-5 text-red-500 hover:text-red-600 cursor-pointer transition-colors duration-200"
