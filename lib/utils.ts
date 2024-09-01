@@ -147,3 +147,14 @@ export async function convertFile(file: File, to: string) {
     }
   });
 }
+
+export const getConversionOptions = (fileType: string) => {
+  if (fileType.startsWith("image/")) {
+    return ["jpeg", "png", "webp", "avif"];
+  } else if (fileType.startsWith("video/")) {
+    return ["mp4", "webm", "avi", "mov", "mp3", "wav", "aac", "ogg"];
+  } else if (fileType.startsWith("audio/")) {
+    return ["mp3", "wav", "ogg", "aac"];
+  }
+  return [];
+};

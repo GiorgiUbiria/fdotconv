@@ -3,6 +3,8 @@
 import { useDropzone } from "react-dropzone";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useConversionStore } from "@/providers/conversion-store-provider";
+import { getConversionOptions } from "@/lib/utils";
 
 type DropzoneProps = {
   onDrop: (files: File[]) => void;
@@ -10,9 +12,15 @@ type DropzoneProps = {
 };
 
 export function Dropzone({ onDrop, className }: DropzoneProps) {
+  const initializeFile = useConversionStore((state) => state.initializeFile);
+
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
       onDrop: (acceptedFiles) => {
+        acceptedFiles.forEach((file) => {
+          const conversionOptions = getConversionOptions(file.type);
+          initializeFile(file, conversionOptions[0] || "");
+        });
         onDrop(acceptedFiles);
         toast.success(`${acceptedFiles.length} file(s) uploaded successfully`);
       },

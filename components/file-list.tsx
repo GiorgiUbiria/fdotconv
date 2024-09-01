@@ -1,7 +1,7 @@
 "use client";
 
 import { convertFile } from "@/lib/utils";
-import { useConversionStore } from "@/lib/conversionStore";
+import { useConversionStore } from "@/providers/conversion-store-provider";
 import {
   FileIcon,
   ImageIcon,
@@ -12,25 +12,14 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useCallback, useRef, useState, useEffect } from "react";
+import { getConversionOptions } from "@/lib/utils";
 import { toast } from "sonner";
 
 type FileListProps = {
   files: File[];
-  setFiles: React.Dispatch<React.SetStateAction<File[]>>;
 };
 
-const getConversionOptions = (fileType: string) => {
-  if (fileType.startsWith("image/")) {
-    return ["jpeg", "png", "webp", "avif"];
-  } else if (fileType.startsWith("video/")) {
-    return ["mp4", "webm", "avi", "mov", "mp3", "wav", "aac", "ogg"];
-  } else if (fileType.startsWith("audio/")) {
-    return ["mp3", "wav", "ogg", "aac"];
-  }
-  return [];
-};
-
-export function FileList({ files, setFiles }: FileListProps) {
+export function FileList({ files }: FileListProps) {
   const {
     conversionStates,
     setConverting,
@@ -41,7 +30,7 @@ export function FileList({ files, setFiles }: FileListProps) {
     initializeFile,
     reset,
     resetConversionState,
-  } = useConversionStore();
+  } = useConversionStore((state) => state);
   const [isConvertingAll, setIsConvertingAll] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,7 +42,10 @@ export function FileList({ files, setFiles }: FileListProps) {
     files.forEach((file) => {
       if (!conversionStates[file.name]) {
         const conversionOptions = getConversionOptions(file.type);
-        initializeFile(file.name, file.type, conversionOptions[0] || "");
+        initializeFile(file, conversionOptions[0] || "");
+      } else if (!conversionStates[file.name].file) {
+        // If we have state but no file object, update the state with the new file object
+        initializeFile(file, conversionStates[file.name].selectedFormat);
       }
     });
   }, [files, conversionStates, initializeFile]);
@@ -65,12 +57,11 @@ export function FileList({ files, setFiles }: FileListProps) {
         delete conversionPromises.current[result];
       }
 
-      setFiles((prevFiles) => prevFiles.filter((f) => f.name !== file.name));
       deleteFile(file.name);
       toast.dismiss(`converting-${file.name}`);
       toast.success(`${file.name} deleted successfully`);
     },
-    [setFiles, deleteFile]
+    [deleteFile]
   );
 
   const handleFormatChange = useCallback(
@@ -142,11 +133,10 @@ export function FileList({ files, setFiles }: FileListProps) {
   }, [files, handleConvert, setConverted, resetConversionState]);
 
   const handleDeleteAll = useCallback(() => {
-    setFiles([]);
     reset();
     conversionPromises.current = {};
     toast.success("All files deleted");
-  }, [setFiles, reset]);
+  }, [reset]);
 
   const allConversionsComplete =
     files.length > 0 &&
@@ -192,30 +182,14 @@ export function FileList({ files, setFiles }: FileListProps) {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       if (event.target.files) {
         const newFiles = Array.from(event.target.files);
-        setFiles((prevFiles) => {
-          const updatedFiles = [...prevFiles];
-          newFiles.forEach((newFile) => {
-            const existingFileIndex = updatedFiles.findIndex(
-              (f) => f.name === newFile.name
-            );
-            if (existingFileIndex !== -1) {
-              updatedFiles[existingFileIndex] = newFile;
-            } else {
-              updatedFiles.push(newFile);
-            }
-            const conversionOptions = getConversionOptions(newFile.type);
-            initializeFile(
-              newFile.name,
-              newFile.type,
-              conversionOptions[0] || ""
-            );
-          });
-          return updatedFiles;
+        newFiles.forEach((newFile) => {
+          const conversionOptions = getConversionOptions(newFile.type);
+          initializeFile(newFile, conversionOptions[0] || "");
         });
         toast.success(`${newFiles.length} file(s) added successfully`);
       }
     },
-    [setFiles, initializeFile]
+    [initializeFile]
   );
 
   return (
@@ -345,9 +319,11 @@ export function FileList({ files, setFiles }: FileListProps) {
                       <select
                         className="appearance-none w-full px-2 py-1 text-sm bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 cursor-pointer"
                         value={fileState.selectedFormat}
-                        onChange={(e) =>
-                          handleFormatChange(file, e.target.value)
-                        }
+                        onChange={(e) => {
+                          console.log("file size", file.size);
+                          console.log("onChange", e.target.value);
+                          handleFormatChange(file, e.target.value);
+                        }}
                         disabled={fileState.isConverting}
                       >
                         {getConversionOptions(fileState.fileType).map(

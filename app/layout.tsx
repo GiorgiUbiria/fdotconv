@@ -4,6 +4,7 @@ import { Roboto_Mono as FontSans } from "next/font/google";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { NavigationBar } from "@/components/navigation-bar";
 import { Toaster } from "@/components/ui/sonner"
+import { ConversionStoreProvider } from "@/providers/conversion-store-provider";
 
 import { cn } from "@/lib/utils";
 
@@ -39,12 +40,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <NavigationBar />
-          <main>
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
+          <ConversionStoreProvider>
+            <NavigationBar />
+            <main>
+              {children}
+            </main>
+            <Footer />
+            <Toaster />
+          </ConversionStoreProvider>
         </ThemeProvider>
       </body>
     </html>
