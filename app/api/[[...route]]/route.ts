@@ -68,12 +68,17 @@ app.post(
 
       console.log("File written successfully, starting conversion");
 
+      const isAudio = file.type.startsWith("audio/");
+      const isVideo = file.type.startsWith("video/");
+      const audioCodec = isAudio ? "-c:a aac" : "-c:a copy"; // Use AAC for audio conversion, or copy if not converting
+      const videoCodec = isVideo ? "-c:v libx264" : ""; // Use H.264 for video conversion if applicable
+
       return new Promise((resolve, reject) => {
         ffmpeg(inputPath)
-          .outputOptions("-c:v libx264")
+          .outputOptions(videoCodec)
+          .outputOptions(audioCodec)
           .outputOptions("-preset fast")
           .outputOptions("-crf 22")
-          .outputOptions("-c:a aac")
           .output(outputPath)
           .on("start", (commandLine) => {
             console.log("FFmpeg process started:", commandLine);

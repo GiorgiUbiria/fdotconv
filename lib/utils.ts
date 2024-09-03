@@ -188,9 +188,13 @@ export async function convertVideoFile(file: File, to: string) {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`Server responded with an error: ${response.status} ${response.statusText}`);
+        console.error(
+          `Server responded with an error: ${response.status} ${response.statusText}`
+        );
         console.error(`Error details: ${errorText}`);
-        throw new Error(`Conversion failed: ${response.status} ${response.statusText}`);
+        throw new Error(
+          `Conversion failed: ${response.status} ${response.statusText}`
+        );
       }
 
       console.log(`Received response from server for ${file.name}`);
@@ -205,7 +209,9 @@ export async function convertVideoFile(file: File, to: string) {
         throw new Error("Output path not provided");
       }
 
-      const convertedFileUrl = `/api/converted/${path.basename(result.outputPath)}`;
+      const convertedFileUrl = `/api/converted/${path.basename(
+        result.outputPath
+      )}`;
       console.log(`Conversion successful: ${file.name} -> ${convertedFileUrl}`);
 
       return convertedFileUrl;
