@@ -7,12 +7,12 @@ import { StoreApi, useStore } from 'zustand';
 const ConversionStoreContext = createContext<StoreApi<ConversionStore> | null>(null);
 
 export const ConversionStoreProvider = ({ children }: { children: React.ReactNode }) => {
-  const storeRef = useRef<StoreApi<ConversionStore>>();
-  const [isHydrated, setIsHydrated] = useState(false);
+const storeRef = useRef<StoreApi<ConversionStore>>();
+const [isHydrated, setIsHydrated] = useState(false);
 
-  if (!storeRef.current) {
-    storeRef.current = createConversionStore();
-  }
+if (!storeRef.current) {
+  storeRef.current = createConversionStore();
+}
 
   useEffect(() => {
     setIsHydrated(true);
