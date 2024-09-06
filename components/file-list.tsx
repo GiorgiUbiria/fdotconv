@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { convertFile, convertVideoFile } from "@/lib/utils";
-import { useConversionStore } from "@/providers/conversion-store-provider";
+import { convertFile, convertVideoFile } from '@/lib/utils';
+import { useConversionStore } from '@/providers/conversion-store-provider';
 import {
   FileIcon,
   ImageIcon,
@@ -10,11 +10,11 @@ import {
   DownloadIcon,
   RefreshCwIcon,
   PlusIcon,
-} from "lucide-react";
-import { useCallback, useRef, useState, useEffect } from "react";
-import { getConversionOptions } from "@/lib/utils";
-import { toast } from "sonner";
-import { FileListItem } from "./file-list-item";
+} from 'lucide-react';
+import { useCallback, useRef, useState, useEffect } from 'react';
+import { getConversionOptions } from '@/lib/utils';
+import { toast } from 'sonner';
+import { FileListItem } from './file-list-item';
 
 type FileListProps = {
   files: File[];
@@ -46,7 +46,7 @@ export function FileList({ files }: FileListProps) {
     files.forEach((file) => {
       if (!conversionStates[file.name]) {
         const conversionOptions = getConversionOptions(file.type);
-        initializeFile(file, conversionOptions[0] || "");
+        initializeFile(file, conversionOptions[0] || '');
       } else if (!conversionStates[file.name].file) {
         initializeFile(file, conversionStates[file.name].selectedFormat);
       }
@@ -90,14 +90,14 @@ export function FileList({ files }: FileListProps) {
         conversionStates[file.name]?.selectedFormat ||
         getConversionOptions(file.type)[0];
 
-      const conversionPromise = file.type.startsWith("video/")
+      const conversionPromise = file.type.startsWith('video/')
         ? convertVideoFile(file, format)
         : convertFile(file, format);
 
       conversionPromises.current[file.name] = conversionPromise
         .then((convertedFile) => {
           setConverted(file.name, convertedFile || null);
-          if (file.type.startsWith("video/")) {
+          if (file.type.startsWith('video/')) {
             setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
             const timer = setInterval(() => {
               setDownloadTimers((prev) => {
@@ -130,33 +130,33 @@ export function FileList({ files }: FileListProps) {
 
   const handleConvertAll = useCallback(() => {
     setIsConvertingAll(true);
-    toast.loading("Converting all files...", { id: "convertingAll" });
+    toast.loading('Converting all files...', { id: 'convertingAll' });
     const allConversionPromises = files.map((file) => {
       resetConversionState(file.name);
       return handleConvert(file);
     });
     Promise.all(allConversionPromises)
       .then((results) => {
-        console.log("All conversions completed");
+        console.log('All conversions completed');
         files.forEach((file, index) => {
           setConverted(file.name, results[index]);
         });
-        toast.success("All files converted successfully");
+        toast.success('All files converted successfully');
       })
       .catch((error) => {
-        console.error("Error during batch conversion:", error);
-        toast.error("Error during batch conversion");
+        console.error('Error during batch conversion:', error);
+        toast.error('Error during batch conversion');
       })
       .finally(() => {
         setIsConvertingAll(false);
-        toast.dismiss("convertingAll");
+        toast.dismiss('convertingAll');
       });
   }, [files, handleConvert, setConverted, resetConversionState]);
 
   const handleDeleteAll = useCallback(() => {
     reset();
     conversionPromises.current = {};
-    toast.success("All files deleted");
+    toast.success('All files deleted');
   }, [reset]);
 
   const allConversionsComplete =
@@ -173,11 +173,11 @@ export function FileList({ files }: FileListProps) {
       if (fileState?.convertedUrl) {
         downloadFile(
           fileState.convertedUrl,
-          `${file.name.split(".")[0]}.${fileState.selectedFormat}`
+          `${file.name.split('.')[0]}.${fileState.selectedFormat}`
         );
       }
     });
-    toast.success("All converted files downloaded");
+    toast.success('All converted files downloaded');
   };
 
   const downloadFile = (url: string, fileName: string) => {
@@ -185,7 +185,7 @@ export function FileList({ files }: FileListProps) {
       .then((response) => response.blob())
       .then((blob) => {
         const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = blobUrl;
         link.download = fileName;
         document.body.appendChild(link);
@@ -194,7 +194,7 @@ export function FileList({ files }: FileListProps) {
         window.URL.revokeObjectURL(blobUrl);
       })
       .catch((error) => {
-        console.error("Download failed:", error);
+        console.error('Download failed:', error);
         toast.error(`Failed to download files`);
       });
   };
@@ -205,7 +205,7 @@ export function FileList({ files }: FileListProps) {
         const newFiles = Array.from(event.target.files);
         newFiles.forEach((newFile) => {
           const conversionOptions = getConversionOptions(newFile.type);
-          initializeFile(newFile, conversionOptions[0] || "");
+          initializeFile(newFile, conversionOptions[0] || '');
         });
         toast.success(`${newFiles.length} file(s) added successfully`);
       }
@@ -215,10 +215,10 @@ export function FileList({ files }: FileListProps) {
 
   return (
     <div className="w-full">
-      <h1 className="text-3xl font-bold mb-6 text-primary bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+      <h1 className="mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-3xl font-bold text-primary text-transparent">
         File List
       </h1>
-      <div className="flex flex-wrap justify-between mb-6 gap-3">
+      <div className="mb-6 flex flex-wrap justify-between gap-3">
         {files.length < 5 && (
           <>
             <input
@@ -230,53 +230,53 @@ export function FileList({ files }: FileListProps) {
               className="hidden"
             />
             <button
-              className="bg-primary hover:bg-primary/80 text-primary-foreground dark:text-primary-foreground font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center"
+              className="flex items-center rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground transition-colors duration-300 hover:bg-primary/80 dark:text-primary-foreground"
               onClick={() => fileInputRef.current?.click()}
             >
-              <PlusIcon className="w-5 h-5 inline mr-2" />
+              <PlusIcon className="mr-2 inline h-5 w-5" />
               Add Files
             </button>
           </>
         )}
         <button
-          className="bg-secondary hover:bg-secondary/80 text-secondary-foreground dark:text-secondary-foreground font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center"
+          className="flex items-center rounded-lg bg-secondary px-4 py-2 font-bold text-secondary-foreground transition-colors duration-300 hover:bg-secondary/80 dark:text-secondary-foreground"
           onClick={handleConvertAll}
           disabled={isConvertingAll}
         >
           {isConvertingAll ? (
             <>
-              <CloverIcon className="w-5 h-5 mr-2 animate-spin" />
+              <CloverIcon className="mr-2 h-5 w-5 animate-spin" />
               Converting...
             </>
           ) : (
             <>
-              <RefreshCwIcon className="w-5 h-5 mr-2" />
+              <RefreshCwIcon className="mr-2 h-5 w-5" />
               Convert All
             </>
           )}
         </button>
         <button
-          className="bg-destructive hover:bg-destructive/80 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center"
+          className="flex items-center rounded-lg bg-destructive px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-destructive/80"
           onClick={handleDeleteAll}
         >
-          <TrashIcon className="w-5 h-5 mr-2" />
+          <TrashIcon className="mr-2 h-5 w-5" />
           Delete All
         </button>
         {allConversionsComplete && (
           <button
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center"
+            className="flex items-center rounded-lg bg-green-500 px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-green-600"
             onClick={handleDownloadAll}
           >
-            <DownloadIcon className="w-5 h-5 mr-2" />
+            <DownloadIcon className="mr-2 h-5 w-5" />
             Download All
           </button>
         )}
         {someConversionsFailed && !isConvertingAll && (
           <button
-            className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 flex items-center"
+            className="flex items-center rounded-lg bg-yellow-500 px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-yellow-600"
             onClick={handleConvertAll}
           >
-            <RefreshCwIcon className="w-5 h-5 mr-2" />
+            <RefreshCwIcon className="mr-2 h-5 w-5" />
             Retry Failed Conversions
           </button>
         )}
@@ -285,16 +285,16 @@ export function FileList({ files }: FileListProps) {
         <table className="w-full table-auto">
           <thead>
             <tr className="bg-primary/10 dark:bg-primary/20">
-              <th className="px-4 py-3 text-primary text-left font-semibold">
+              <th className="px-4 py-3 text-left font-semibold text-primary">
                 File
               </th>
-              <th className="px-4 py-3 text-primary text-left font-semibold">
+              <th className="px-4 py-3 text-left font-semibold text-primary">
                 Size
               </th>
-              <th className="px-4 py-3 text-primary text-left font-semibold">
+              <th className="px-4 py-3 text-left font-semibold text-primary">
                 Format
               </th>
-              <th className="px-4 py-3 text-primary text-right font-semibold">
+              <th className="px-4 py-3 text-right font-semibold text-primary">
                 Actions
               </th>
             </tr>
@@ -307,24 +307,24 @@ export function FileList({ files }: FileListProps) {
               return (
                 <tr
                   key={file.name}
-                  className="border-b border-primary/10 hover:bg-secondary/5 transition-colors duration-200"
+                  className="border-b border-primary/10 transition-colors duration-200 hover:bg-secondary/5"
                 >
-                  <td className="px-4 py-3 flex items-center">
-                    {file.type.startsWith("image/") ? (
-                      <ImageIcon className="w-5 h-5 mr-2 text-primary" />
+                  <td className="flex items-center px-4 py-3">
+                    {file.type.startsWith('image/') ? (
+                      <ImageIcon className="mr-2 h-5 w-5 text-primary" />
                     ) : (
-                      <FileIcon className="w-5 h-5 mr-2 text-primary" />
+                      <FileIcon className="mr-2 h-5 w-5 text-primary" />
                     )}
-                    <span className="truncate max-w-xs">
+                    <span className="max-w-xs truncate">
                       {(() => {
-                        const parts = file.name.split(".");
-                        const ext = parts.length > 1 ? parts.pop() : "";
-                        const name = parts.join(".");
+                        const parts = file.name.split('.');
+                        const ext = parts.length > 1 ? parts.pop() : '';
+                        const name = parts.join('.');
                         if (name.length <= 18) {
                           return file.name;
                         } else {
                           return `${name.slice(0, 15)}...${
-                            ext ? ` .${ext}` : ""
+                            ext ? ` .${ext}` : ''
                           }`;
                         }
                       })()}
@@ -338,11 +338,11 @@ export function FileList({ files }: FileListProps) {
                   <td className="px-4 py-3">
                     <div className="relative inline-block w-full">
                       <select
-                        className="appearance-none w-full px-2 py-1 text-sm bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 rounded focus:outline-none focus:ring-1 focus:ring-primary/50 focus:border-primary/50 transition-all duration-200 cursor-pointer"
+                        className="w-full cursor-pointer appearance-none rounded border border-primary/20 bg-gradient-to-r from-primary/10 to-secondary/10 px-2 py-1 text-sm transition-all duration-200 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
                         value={fileState.selectedFormat}
                         onChange={(e) => {
-                          console.log("file size", file.size);
-                          console.log("onChange", e.target.value);
+                          console.log('file size', file.size);
+                          console.log('onChange', e.target.value);
                           handleFormatChange(file, e.target.value);
                         }}
                         disabled={fileState.isConverting}
@@ -361,7 +361,7 @@ export function FileList({ files }: FileListProps) {
                       </select>
                       <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1 text-primary">
                         <svg
-                          className="fill-current h-3 w-3"
+                          className="h-3 w-3 fill-current"
                           xmlns="http://www.w3.org/2000/svg"
                           viewBox="0 0 20 20"
                         >
@@ -371,24 +371,24 @@ export function FileList({ files }: FileListProps) {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="flex gap-x-3 w-full justify-end">
+                    <div className="flex w-full justify-end gap-x-3">
                       <TrashIcon
-                        className="w-5 h-5 text-destructive hover:text-destructive/80 cursor-pointer transition-colors duration-200"
+                        className="h-5 w-5 cursor-pointer text-destructive transition-colors duration-200 hover:text-destructive/80"
                         onClick={() => handleDelete(file)}
                       />
                       {fileState.isConverting ? (
-                        <CloverIcon className="w-5 h-5 text-yellow-500 animate-spin" />
+                        <CloverIcon className="h-5 w-5 animate-spin text-yellow-500" />
                       ) : fileState.convertedUrl ? (
                         <div className="flex items-center">
-                          {file.type.startsWith("video/") &&
+                          {file.type.startsWith('video/') &&
                           downloadTimers[file.name] > 0 ? (
                             <>
                               <DownloadIcon
-                                className="w-5 h-5 text-blue-500 hover:text-blue-600 cursor-pointer transition-colors duration-200 mr-2"
+                                className="mr-2 h-5 w-5 cursor-pointer text-blue-500 transition-colors duration-200 hover:text-blue-600"
                                 onClick={() =>
                                   downloadFile(
                                     fileState.convertedUrl!,
-                                    `${file.name.split(".")[0]}.${
+                                    `${file.name.split('.')[0]}.${
                                       fileState.selectedFormat
                                     }`
                                   )
@@ -400,7 +400,7 @@ export function FileList({ files }: FileListProps) {
                             </>
                           ) : (
                             <RefreshCwIcon
-                              className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer transition-colors duration-200"
+                              className="h-5 w-5 cursor-pointer text-green-500 transition-colors duration-200 hover:text-green-600"
                               onClick={() => {
                                 resetConversionState(file.name);
                                 handleConvert(file);
@@ -410,7 +410,7 @@ export function FileList({ files }: FileListProps) {
                         </div>
                       ) : fileState.conversionFailed ? (
                         <RefreshCwIcon
-                          className="w-5 h-5 text-red-500 hover:text-red-600 cursor-pointer transition-colors duration-200"
+                          className="h-5 w-5 cursor-pointer text-red-500 transition-colors duration-200 hover:text-red-600"
                           onClick={() => {
                             resetConversionState(file.name);
                             handleConvert(file);
@@ -418,7 +418,7 @@ export function FileList({ files }: FileListProps) {
                         />
                       ) : (
                         <CloverIcon
-                          className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer transition-colors duration-200"
+                          className="h-5 w-5 cursor-pointer text-green-500 transition-colors duration-200 hover:text-green-600"
                           onClick={() => handleConvert(file)}
                         />
                       )}

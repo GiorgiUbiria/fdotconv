@@ -1,9 +1,9 @@
-import { FFmpeg } from "@ffmpeg/ffmpeg";
-import { toBlobURL, fetchFile } from "@ffmpeg/util";
-import { type ClassValue, clsx } from "clsx";
-import { twMerge } from "tailwind-merge";
-import pQueue from "p-queue";
-import path from "path";
+import { FFmpeg } from '@ffmpeg/ffmpeg';
+import { toBlobURL, fetchFile } from '@ffmpeg/util';
+import { type ClassValue, clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+import pQueue from 'p-queue';
+import path from 'path';
 
 const conversionQueue = new pQueue({ concurrency: 3 });
 
@@ -23,11 +23,11 @@ export function cn(...inputs: ClassValue[]) {
 
 export async function loadFfmpeg(): Promise<FFmpeg> {
   const ffmpeg = new FFmpeg();
-  const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
+  const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
 
   await ffmpeg.load({
-    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, "text/javascript"),
-    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, "application/wasm"),
+    coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+    wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
   });
 
   return ffmpeg;
@@ -37,12 +37,12 @@ function getFileNameAndExtension(file: File): {
   extension: string;
   name: string;
 } {
-  const parts = file.name.split(".");
-  const extension = parts.pop() || "";
-  const name = parts.join(".");
+  const parts = file.name.split('.');
+  const extension = parts.pop() || '';
+  const name = parts.join('.');
 
   if (!extension) {
-    throw new Error("File has no extension");
+    throw new Error('File has no extension');
   }
 
   return { extension, name };
@@ -61,84 +61,84 @@ export async function convertFile(file: File, to: string) {
 
       await ffmpegClient.writeFile(inputFileName, await fetchFile(file));
 
-      let ffmpegCommand = ["-i", inputFileName];
+      let ffmpegCommand = ['-i', inputFileName];
 
-      if (file.type.startsWith("video/")) {
-        if (["mp3", "wav", "aac", "ogg"].includes(to)) {
-          ffmpegCommand.push("-vn");
+      if (file.type.startsWith('video/')) {
+        if (['mp3', 'wav', 'aac', 'ogg'].includes(to)) {
+          ffmpegCommand.push('-vn');
           switch (to) {
-            case "mp3":
-              ffmpegCommand.push("-acodec", "libmp3lame");
+            case 'mp3':
+              ffmpegCommand.push('-acodec', 'libmp3lame');
               break;
-            case "wav":
-              ffmpegCommand.push("-acodec", "pcm_s16le");
+            case 'wav':
+              ffmpegCommand.push('-acodec', 'pcm_s16le');
               break;
-            case "aac":
-              ffmpegCommand.push("-acodec", "aac");
+            case 'aac':
+              ffmpegCommand.push('-acodec', 'aac');
               break;
-            case "ogg":
-              ffmpegCommand.push("-acodec", "libvorbis");
+            case 'ogg':
+              ffmpegCommand.push('-acodec', 'libvorbis');
               break;
           }
         } else {
           ffmpegCommand.push(
-            "-c:v",
-            "libx264",
-            "-preset",
-            "fast",
-            "-crf",
-            "22"
+            '-c:v',
+            'libx264',
+            '-preset',
+            'fast',
+            '-crf',
+            '22'
           );
-          ffmpegCommand.push("-c:a", "aac");
+          ffmpegCommand.push('-c:a', 'aac');
         }
-      } else if (file.type.startsWith("audio/")) {
+      } else if (file.type.startsWith('audio/')) {
         switch (to) {
-          case "mp3":
-            ffmpegCommand.push("-acodec", "libmp3lame");
+          case 'mp3':
+            ffmpegCommand.push('-acodec', 'libmp3lame');
             break;
-          case "wav":
-            ffmpegCommand.push("-acodec", "pcm_s16le");
+          case 'wav':
+            ffmpegCommand.push('-acodec', 'pcm_s16le');
             break;
-          case "aac":
-            ffmpegCommand.push("-acodec", "aac");
+          case 'aac':
+            ffmpegCommand.push('-acodec', 'aac');
             break;
-          case "ogg":
-            ffmpegCommand.push("-acodec", "libvorbis");
+          case 'ogg':
+            ffmpegCommand.push('-acodec', 'libvorbis');
             break;
         }
-      } else if (file.type.startsWith("image/")) {
-        ffmpegCommand.push("-vf", "scale='min(1920,iw)':'-1'");
+      } else if (file.type.startsWith('image/')) {
+        ffmpegCommand.push('-vf', "scale='min(1920,iw)':'-1'");
       }
 
       switch (to) {
-        case "mp4":
-          ffmpegCommand.push("-f", "mp4");
+        case 'mp4':
+          ffmpegCommand.push('-f', 'mp4');
           break;
-        case "mp3":
-          ffmpegCommand.push("-f", "mp3");
+        case 'mp3':
+          ffmpegCommand.push('-f', 'mp3');
           break;
-        case "wav":
-          ffmpegCommand.push("-f", "wav");
+        case 'wav':
+          ffmpegCommand.push('-f', 'wav');
           break;
-        case "webm":
-          ffmpegCommand.push("-f", "webm");
+        case 'webm':
+          ffmpegCommand.push('-f', 'webm');
           break;
-        case "gif":
-          ffmpegCommand.push("-f", "gif");
+        case 'gif':
+          ffmpegCommand.push('-f', 'gif');
           break;
       }
 
       ffmpegCommand.push(outputFileName);
 
-      console.log("FFmpeg command:", ffmpegCommand);
+      console.log('FFmpeg command:', ffmpegCommand);
 
       await ffmpegClient.exec(ffmpegCommand);
 
       const convertedFile = await ffmpegClient.readFile(outputFileName);
       const mimeType =
-        file.type.split("/")[0] === "image"
+        file.type.split('/')[0] === 'image'
           ? `image/${to}`
-          : `${file.type.split("/")[0]}/${to}`;
+          : `${file.type.split('/')[0]}/${to}`;
       const blob = new Blob([convertedFile], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
@@ -151,23 +151,23 @@ export async function convertFile(file: File, to: string) {
 
       return url;
     } catch (error) {
-      console.error("Error during file conversion:", error);
+      console.error('Error during file conversion:', error);
       if (error instanceof Error) {
         throw new Error(`File conversion failed: ${error.message}`);
       } else {
-        throw new Error("File conversion failed due to an unknown error");
+        throw new Error('File conversion failed due to an unknown error');
       }
     }
   });
 }
 
 export const getConversionOptions = (fileType: string) => {
-  if (fileType.startsWith("image/")) {
-    return ["jpeg", "png", "webp", "avif"];
-  } else if (fileType.startsWith("video/")) {
-    return ["mp4", "webm", "avi", "mov", "mp3", "wav", "aac", "ogg"];
-  } else if (fileType.startsWith("audio/")) {
-    return ["mp3", "wav", "ogg", "aac"];
+  if (fileType.startsWith('image/')) {
+    return ['jpeg', 'png', 'webp', 'avif'];
+  } else if (fileType.startsWith('video/')) {
+    return ['mp4', 'webm', 'avi', 'mov', 'mp3', 'wav', 'aac', 'ogg'];
+  } else if (fileType.startsWith('audio/')) {
+    return ['mp3', 'wav', 'ogg', 'aac'];
   }
   return [];
 };
@@ -177,12 +177,12 @@ export async function convertVideoFile(file: File, to: string) {
   return conversionQueue.add(async () => {
     try {
       const formData = new FormData();
-      formData.append("file", file);
-      formData.append("format", to);
+      formData.append('file', file);
+      formData.append('format', to);
 
       console.log(`Sending conversion request to server: ${file.name}`);
-      const response = await fetch("/api/convert", {
-        method: "POST",
+      const response = await fetch('/api/convert', {
+        method: 'POST',
         body: formData,
       });
 
@@ -205,8 +205,8 @@ export async function convertVideoFile(file: File, to: string) {
       }
 
       if (!result.outputPath) {
-        console.error("Server response is missing output path");
-        throw new Error("Output path not provided");
+        console.error('Server response is missing output path');
+        throw new Error('Output path not provided');
       }
 
       const convertedFileUrl = `/api/converted/${path.basename(
@@ -216,13 +216,13 @@ export async function convertVideoFile(file: File, to: string) {
 
       return convertedFileUrl;
     } catch (error) {
-      console.error("Error during file conversion:", error);
+      console.error('Error during file conversion:', error);
       if (error instanceof Error) {
         console.error(`Stack trace: ${error.stack}`);
         throw new Error(`File conversion failed: ${error.message}`);
       } else {
-        console.error("Unknown error object:", error);
-        throw new Error("File conversion failed due to an unknown error");
+        console.error('Unknown error object:', error);
+        throw new Error('File conversion failed due to an unknown error');
       }
     }
   });

@@ -1,19 +1,19 @@
-import { Hono } from "hono";
-import { handle } from "hono/vercel";
-import { serveStatic } from "@hono/node-server/serve-static";
-import ffmpeg from "fluent-ffmpeg";
-import fs from "fs";
-import path from "path";
-import { createWriteStream } from "fs";
-import { PassThrough, Readable } from "stream";
-import { zValidator } from "@hono/zod-validator";
-import { z } from "zod";
-import mime from "mime-types";
-import { ReadableStream } from "stream/web";
+import { Hono } from 'hono';
+import { handle } from 'hono/vercel';
+import { serveStatic } from '@hono/node-server/serve-static';
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import path from 'path';
+import { createWriteStream } from 'fs';
+import { PassThrough, Readable } from 'stream';
+import { zValidator } from '@hono/zod-validator';
+import { z } from 'zod';
+import mime from 'mime-types';
+import { ReadableStream } from 'stream/web';
 
-const app = new Hono().basePath("/api");
+const app = new Hono().basePath('/api');
 
-app.use("/*", serveStatic({ root: "./public" }));
+app.use('/*', serveStatic({ root: './public' }));
 
 const convertVideoToVideo = async (
   ffmpegCommand: ffmpeg.FfmpegCommand,
@@ -21,17 +21,17 @@ const convertVideoToVideo = async (
   outputPath: string
 ) => {
   switch (format) {
-    case "mp4":
-      ffmpegCommand.videoCodec("libx264");
+    case 'mp4':
+      ffmpegCommand.videoCodec('libx264');
       break;
-    case "webm":
-      ffmpegCommand.videoCodec("libvpx-vp9");
+    case 'webm':
+      ffmpegCommand.videoCodec('libvpx-vp9');
       break;
-    case "avi":
-      ffmpegCommand.videoCodec("mpeg4");
+    case 'avi':
+      ffmpegCommand.videoCodec('mpeg4');
       break;
-    case "mov":
-      ffmpegCommand.videoCodec("prores_ks");
+    case 'mov':
+      ffmpegCommand.videoCodec('prores_ks');
       break;
     default:
       throw new Error(`Unsupported video format: ${format}`);
@@ -45,21 +45,21 @@ const convertVideoToAudio = (
   format: string,
   outputPath: string
 ) => {
-  console.log("Converting video to audio", format, outputPath);
+  console.log('Converting video to audio', format, outputPath);
   ffmpegCommand.noVideo();
 
   switch (format) {
-    case "mp3":
-      ffmpegCommand.audioCodec("libmp3lame");
+    case 'mp3':
+      ffmpegCommand.audioCodec('libmp3lame');
       break;
-    case "wav":
-      ffmpegCommand.audioCodec("pcm_s16le");
+    case 'wav':
+      ffmpegCommand.audioCodec('pcm_s16le');
       break;
-    case "aac":
-      ffmpegCommand.audioCodec("aac");
+    case 'aac':
+      ffmpegCommand.audioCodec('aac');
       break;
-    case "ogg":
-      ffmpegCommand.audioCodec("libvorbis");
+    case 'ogg':
+      ffmpegCommand.audioCodec('libvorbis');
       break;
     default:
       throw new Error(`Unsupported audio format: ${format}`);
@@ -67,9 +67,9 @@ const convertVideoToAudio = (
 
   ffmpegCommand
     .output(outputPath)
-    .outputOptions("-y")
-    .on("error", (err) => {
-      console.error("Error:", err.message);
+    .outputOptions('-y')
+    .on('error', (err) => {
+      console.error('Error:', err.message);
       throw err;
     });
 
@@ -82,26 +82,26 @@ const convertAudioToAudio = (
   outputPath: string
 ) => {
   switch (format) {
-    case "mp3":
-      ffmpegCommand.audioCodec("libmp3lame");
+    case 'mp3':
+      ffmpegCommand.audioCodec('libmp3lame');
       break;
-    case "wav":
-      ffmpegCommand.audioCodec("pcm_s16le");
+    case 'wav':
+      ffmpegCommand.audioCodec('pcm_s16le');
       break;
-    case "ogg":
-      ffmpegCommand.audioCodec("libvorbis");
+    case 'ogg':
+      ffmpegCommand.audioCodec('libvorbis');
       break;
-    case "aac":
-      ffmpegCommand.audioCodec("aac");
+    case 'aac':
+      ffmpegCommand.audioCodec('aac');
       break;
     default:
       throw new Error(`Unsupported audio format: ${format}`);
   }
   ffmpegCommand
     .output(outputPath)
-    .outputOptions("-y")
-    .on("error", (err) => {
-      console.error("Error:", err.message);
+    .outputOptions('-y')
+    .on('error', (err) => {
+      console.error('Error:', err.message);
       throw err;
     });
   return ffmpegCommand;
@@ -113,40 +113,40 @@ const convertFile = async (
   format: string,
   fileType: string
 ) => {
-  const isAudio = fileType.startsWith("audio/");
-  const isVideo = fileType.startsWith("video/");
+  const isAudio = fileType.startsWith('audio/');
+  const isVideo = fileType.startsWith('video/');
 
   const ffmpegCommand = ffmpeg(inputPath);
 
   if (isVideo) {
-    if (["mp3", "wav", "aac", "ogg"].includes(format)) {
+    if (['mp3', 'wav', 'aac', 'ogg'].includes(format)) {
       convertVideoToAudio(ffmpegCommand, format, outputPath);
     } else {
       convertVideoToVideo(ffmpegCommand, format, outputPath);
     }
   } else if (isAudio) {
-    if (format.startsWith("video/")) {
-      throw new Error("Cannot convert audio to video");
+    if (format.startsWith('video/')) {
+      throw new Error('Cannot convert audio to video');
     }
     convertAudioToAudio(ffmpegCommand, format, outputPath);
   }
 
-  ffmpegCommand.outputOptions("-preset fast").outputOptions("-crf 22");
+  ffmpegCommand.outputOptions('-preset fast').outputOptions('-crf 22');
 
   return new Promise<void>((resolve, reject) => {
     ffmpegCommand
-      .on("start", (commandLine) => {
-        console.log("FFmpeg process started:", commandLine);
+      .on('start', (commandLine) => {
+        console.log('FFmpeg process started:', commandLine);
       })
-      .on("progress", (progress) => {
+      .on('progress', (progress) => {
         console.log(`Processing: ${progress.percent}% done`);
       })
-      .on("end", () => {
-        console.log("Conversion completed successfully");
+      .on('end', () => {
+        console.log('Conversion completed successfully');
         resolve();
       })
-      .on("error", (err) => {
-        console.error("FFmpeg error:", err);
+      .on('error', (err) => {
+        console.error('FFmpeg error:', err);
         reject(err);
       })
       .run();
@@ -154,41 +154,41 @@ const convertFile = async (
 };
 
 app.post(
-  "/convert",
+  '/convert',
   zValidator(
-    "form",
+    'form',
     z.object({
       file: z.instanceof(File),
       format: z.string(),
     })
   ),
   async (c) => {
-    console.log("Received conversion request");
+    console.log('Received conversion request');
     try {
       const { file, format } = await c.req.parseBody();
       if (!file || !(file instanceof File)) {
-        console.error("No file uploaded");
-        return c.json({ error: "No file uploaded" }, 400);
+        console.error('No file uploaded');
+        return c.json({ error: 'No file uploaded' }, 400);
       }
 
       const { name, type: fileType } = file;
-      if (typeof format !== "string") {
-        return c.json({ error: "Invalid format" }, 400);
+      if (typeof format !== 'string') {
+        return c.json({ error: 'Invalid format' }, 400);
       }
 
       console.log(`Processing file: ${name} to format: ${format}`);
-      const inputPath = path.join("uploads", name);
+      const inputPath = path.join('uploads', name);
       const outputPath = path.join(
-        "converted",
+        'converted',
         `${path.parse(name).name}.${format}`
       );
 
       try {
-        await fs.promises.mkdir("uploads", { recursive: true });
-        await fs.promises.mkdir("converted", { recursive: true });
+        await fs.promises.mkdir('uploads', { recursive: true });
+        await fs.promises.mkdir('converted', { recursive: true });
       } catch (err) {
-        console.error("Error creating directories:", err);
-        return c.json({ error: "Failed to create directories" }, 500);
+        console.error('Error creating directories:', err);
+        return c.json({ error: 'Failed to create directories' }, 500);
       }
 
       const writeStream = createWriteStream(inputPath);
@@ -197,22 +197,22 @@ app.post(
       readStream.pipe(writeStream);
 
       await new Promise((resolve, reject) => {
-        writeStream.on("finish", resolve);
-        writeStream.on("error", (err) => {
-          console.error("Error writing file:", err);
+        writeStream.on('finish', resolve);
+        writeStream.on('error', (err) => {
+          console.error('Error writing file:', err);
           reject(err);
         });
       });
 
-      console.log("File written successfully, starting conversion");
+      console.log('File written successfully, starting conversion');
       console.log(inputPath, outputPath, format, fileType);
 
       try {
         await convertFile(inputPath, outputPath, format, fileType);
       } catch (err) {
-        console.error("Conversion error:", err);
+        console.error('Conversion error:', err);
         return c.json(
-          { error: "Conversion failed", details: (err as Error).message },
+          { error: 'Conversion failed', details: (err as Error).message },
           500
         );
       } finally {
@@ -221,10 +221,10 @@ app.post(
 
       return c.json({ success: true, outputPath });
     } catch (err) {
-      console.error("Unexpected error:", err);
+      console.error('Unexpected error:', err);
       return c.json(
         {
-          error: "An unexpected error occurred",
+          error: 'An unexpected error occurred',
           details: (err as Error).message,
         },
         500
@@ -233,24 +233,24 @@ app.post(
   }
 );
 
-app.get("/converted/:filename", async (c) => {
-  const filename = c.req.param("filename");
-  const filePath = path.join("converted", filename);
+app.get('/converted/:filename', async (c) => {
+  const filename = c.req.param('filename');
+  const filePath = path.join('converted', filename);
 
   try {
     await fs.promises.access(filePath);
   } catch (err) {
-    return c.json({ error: "File not found" }, 404);
+    return c.json({ error: 'File not found' }, 404);
   }
 
   const stat = await fs.promises.stat(filePath);
   const fileSize = stat.size;
 
-  const mimeType = mime.lookup(filePath) || "application/octet-stream";
+  const mimeType = mime.lookup(filePath) || 'application/octet-stream';
 
-  c.header("Content-Type", mimeType);
-  c.header("Content-Length", fileSize.toString());
-  c.header("Content-Disposition", `attachment; filename="${filename}"`);
+  c.header('Content-Type', mimeType);
+  c.header('Content-Length', fileSize.toString());
+  c.header('Content-Disposition', `attachment; filename="${filename}"`);
 
   const fileStream = fs.createReadStream(filePath);
   return c.newResponse(fileStream as any);

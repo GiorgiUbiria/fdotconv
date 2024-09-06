@@ -1,5 +1,5 @@
-import { useConversionStore } from "@/providers/conversion-store-provider";
-import { getConversionOptions } from "@/lib/utils";
+import { useConversionStore } from '@/providers/conversion-store-provider';
+import { getConversionOptions } from '@/lib/utils';
 import {
   FileIcon,
   ImageIcon,
@@ -7,7 +7,7 @@ import {
   CloverIcon,
   DownloadIcon,
   RefreshCwIcon,
-} from "lucide-react";
+} from 'lucide-react';
 
 type FileListItemProps = {
   file: File;
@@ -35,25 +35,25 @@ export function FileListItem({
   };
 
   return (
-    <tr className="border-b border-primary/10 hover:bg-secondary/5 transition-colors duration-200">
+    <tr className="border-b border-primary/10 transition-colors duration-200 hover:bg-secondary/5">
       <td className="px-4 py-3">
-        <div className="flex gap-x-3 w-full justify-end">
+        <div className="flex w-full justify-end gap-x-3">
           <TrashIcon
-            className="w-5 h-5 text-destructive hover:text-destructive/80 cursor-pointer transition-colors duration-200"
+            className="h-5 w-5 cursor-pointer text-destructive transition-colors duration-200 hover:text-destructive/80"
             onClick={() => onDelete(file)}
           />
           {fileState.isConverting ? (
-            <CloverIcon className="w-5 h-5 text-yellow-500 animate-spin" />
+            <CloverIcon className="h-5 w-5 animate-spin text-yellow-500" />
           ) : fileState.convertedUrl ? (
             <div className="flex items-center">
-              {file.type.startsWith("video/") && downloadTimer > 0 ? (
+              {file.type.startsWith('video/') && downloadTimer > 0 ? (
                 <>
                   <DownloadIcon
-                    className="w-5 h-5 text-blue-500 hover:text-blue-600 cursor-pointer transition-colors duration-200 mr-2"
+                    className="mr-2 h-5 w-5 cursor-pointer text-blue-500 transition-colors duration-200 hover:text-blue-600"
                     onClick={() =>
                       onDownload(
                         fileState.convertedUrl!,
-                        `${file.name.split(".")[0]}.${fileState.selectedFormat}`
+                        `${file.name.split('.')[0]}.${fileState.selectedFormat}`
                       )
                     }
                   />
@@ -63,7 +63,7 @@ export function FileListItem({
                 </>
               ) : (
                 <RefreshCwIcon
-                  className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer transition-colors duration-200"
+                  className="h-5 w-5 cursor-pointer text-green-500 transition-colors duration-200 hover:text-green-600"
                   onClick={() => {
                     resetConversionState(file.name);
                     onConvert(file);
@@ -73,7 +73,7 @@ export function FileListItem({
             </div>
           ) : fileState.conversionFailed ? (
             <RefreshCwIcon
-              className="w-5 h-5 text-red-500 hover:text-red-600 cursor-pointer transition-colors duration-200"
+              className="h-5 w-5 cursor-pointer text-red-500 transition-colors duration-200 hover:text-red-600"
               onClick={() => {
                 resetConversionState(file.name);
                 onConvert(file);
@@ -81,7 +81,7 @@ export function FileListItem({
             />
           ) : (
             <CloverIcon
-              className="w-5 h-5 text-green-500 hover:text-green-600 cursor-pointer transition-colors duration-200"
+              className="h-5 w-5 cursor-pointer text-green-500 transition-colors duration-200 hover:text-green-600"
               onClick={() => onConvert(file)}
             />
           )}

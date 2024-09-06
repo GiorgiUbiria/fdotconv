@@ -1,6 +1,6 @@
-import { immer } from "zustand/middleware/immer";
-import { createStore } from "zustand/vanilla";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { immer } from 'zustand/middleware/immer';
+import { createStore } from 'zustand/vanilla';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 type ConversionState = {
   file: File;
@@ -24,10 +24,7 @@ export type ConversionStore = {
   deleteFile: (fileName: string) => void;
   setConversionFailed: (fileName: string) => void;
   incrementRetryCount: (fileName: string) => void;
-  initializeFile: (
-    file: File,
-    selectedFormat: string
-  ) => void;
+  initializeFile: (file: File, selectedFormat: string) => void;
   resetConversionState: (fileName: string) => void;
   reset: () => void;
 };
@@ -111,11 +108,13 @@ export const createConversionStore = (initState = {}) => {
               key,
               {
                 ...value,
-                file: value.file ? {
-                  name: value.file.name,
-                  type: value.file.type,
-                  size: value.file.size,
-                } : null,
+                file: value.file
+                  ? {
+                      name: value.file.name,
+                      type: value.file.type,
+                      size: value.file.size,
+                    }
+                  : null,
               },
             ])
           ),

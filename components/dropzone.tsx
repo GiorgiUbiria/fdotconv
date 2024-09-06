@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import { useDropzone } from "react-dropzone";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { useConversionStore } from "@/providers/conversion-store-provider";
-import { getConversionOptions } from "@/lib/utils";
+import { useDropzone } from 'react-dropzone';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useConversionStore } from '@/providers/conversion-store-provider';
+import { getConversionOptions } from '@/lib/utils';
 
 type DropzoneProps = {
   onDrop: (files: File[]) => void;
@@ -19,7 +19,7 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
       onDrop: (acceptedFiles) => {
         acceptedFiles.forEach((file) => {
           const conversionOptions = getConversionOptions(file.type);
-          initializeFile(file, conversionOptions[0] || "");
+          initializeFile(file, conversionOptions[0] || '');
         });
         onDrop(acceptedFiles);
         toast.success(`${acceptedFiles.length} file(s) uploaded successfully`);
@@ -27,13 +27,13 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
       maxFiles: 5,
       multiple: true,
       accept: {
-        "video/*": [],
-        "audio/*": [],
-        "image/*": [],
+        'video/*': [],
+        'audio/*': [],
+        'image/*': [],
       },
       onDropRejected: () => {
         toast.error(
-          "File upload failed. Please check file types and number of files."
+          'File upload failed. Please check file types and number of files.'
         );
       },
     });
@@ -42,19 +42,19 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
     <div
       {...getRootProps()}
       className={cn(
-        "border-4 border-dashed rounded-xl p-8",
-        "w-full h-80 flex flex-col items-center justify-center",
-        "text-center cursor-pointer transition-all duration-300",
+        'rounded-xl border-4 border-dashed p-8',
+        'flex h-80 w-full flex-col items-center justify-center',
+        'cursor-pointer text-center transition-all duration-300',
         isDragActive
-          ? "border-primary bg-primary/10 scale-105"
-          : "border-secondary/50 hover:border-primary/50 hover:bg-secondary/5",
+          ? 'scale-105 border-primary bg-primary/10'
+          : 'border-secondary/50 hover:border-primary/50 hover:bg-secondary/5',
         className
       )}
     >
       <input {...getInputProps()} />
-      <div className="relative w-24 h-24 mb-4">
+      <div className="relative mb-4 h-24 w-24">
         <svg
-          className="w-full h-full text-primary"
+          className="h-full w-full text-primary"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -68,8 +68,8 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
         </svg>
       </div>
       {isDragActive ? (
-        <p className="text-2xl font-bold text-primary animate-bounce">
-          Drop it like it's hot!
+        <p className="animate-bounce text-2xl font-bold text-primary">
+          Drop it like it is hot!
         </p>
       ) : (
         <p className="text-xl font-semibold text-secondary-foreground">
@@ -80,7 +80,7 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
       )}
       {fileRejections.length > 0 &&
         toast.error(
-          "You can only upload a maximum of 5 files at a time. Only video, audio, and image files are accepted."
+          'You can only upload a maximum of 5 files at a time. Only video, audio, and image files are accepted.'
         )}
     </div>
   );
