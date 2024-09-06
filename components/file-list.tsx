@@ -14,6 +14,7 @@ import {
 import { useCallback, useRef, useState, useEffect } from "react";
 import { getConversionOptions } from "@/lib/utils";
 import { toast } from "sonner";
+import { FileListItem } from "./file-list-item";
 
 type FileListProps = {
   files: File[];

@@ -7,15 +7,15 @@ import { getConversionOptions } from "@/lib/utils";
 
 export function Converter() {
   const files = useConversionStore((state) =>
-    Object.values(state.conversionStates).map((state) => state.file)
+  Object.values(state.conversionStates).map((state) => state.file)
   );
   const initializeFile = useConversionStore((state) => state.initializeFile);
 
   const handleDrop = (newFiles: File[]) => {
-    newFiles.forEach((file) => {
-      const conversionOptions = getConversionOptions(file.type);
-      initializeFile(file, conversionOptions[0] || "");
-    });
+  newFiles.forEach((file) => {
+    const conversionOptions = getConversionOptions(file.type);
+    initializeFile(file, conversionOptions[0] || "");
+  });
   };
 
   return (

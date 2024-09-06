@@ -15,6 +15,98 @@ const app = new Hono().basePath("/api");
 
 app.use("/*", serveStatic({ root: "./public" }));
 
+const convertVideoToVideo = async (
+  ffmpegCommand: ffmpeg.FfmpegCommand,
+  format: string,
+  outputPath: string
+) => {
+  switch (format) {
+    case "mp4":
+      ffmpegCommand.videoCodec("libx264");
+      break;
+    case "webm":
+      ffmpegCommand.videoCodec("libvpx-vp9");
+      break;
+    case "avi":
+      ffmpegCommand.videoCodec("mpeg4");
+      break;
+    case "mov":
+      ffmpegCommand.videoCodec("prores_ks");
+      break;
+    default:
+      throw new Error(`Unsupported video format: ${format}`);
+  }
+  ffmpegCommand.output(outputPath);
+  return ffmpegCommand;
+};
+
+const convertVideoToAudio = (
+  ffmpegCommand: ffmpeg.FfmpegCommand,
+  format: string,
+  outputPath: string
+) => {
+  console.log("Converting video to audio", format, outputPath);
+  ffmpegCommand.noVideo();
+
+  switch (format) {
+    case "mp3":
+      ffmpegCommand.audioCodec("libmp3lame");
+      break;
+    case "wav":
+      ffmpegCommand.audioCodec("pcm_s16le");
+      break;
+    case "aac":
+      ffmpegCommand.audioCodec("aac");
+      break;
+    case "ogg":
+      ffmpegCommand.audioCodec("libvorbis");
+      break;
+    default:
+      throw new Error(`Unsupported audio format: ${format}`);
+  }
+
+  ffmpegCommand
+    .output(outputPath)
+    .outputOptions("-y")
+    .on("error", (err) => {
+      console.error("Error:", err.message);
+      throw err;
+    });
+
+  return ffmpegCommand;
+};
+
+const convertAudioToAudio = (
+  ffmpegCommand: ffmpeg.FfmpegCommand,
+  format: string,
+  outputPath: string
+) => {
+  switch (format) {
+    case "mp3":
+      ffmpegCommand.audioCodec("libmp3lame");
+      break;
+    case "wav":
+      ffmpegCommand.audioCodec("pcm_s16le");
+      break;
+    case "ogg":
+      ffmpegCommand.audioCodec("libvorbis");
+      break;
+    case "aac":
+      ffmpegCommand.audioCodec("aac");
+      break;
+    default:
+      throw new Error(`Unsupported audio format: ${format}`);
+  }
+  ffmpegCommand
+    .output(outputPath)
+    .outputOptions("-y")
+    .on("error", (err) => {
+      console.error("Error:", err.message);
+      throw err;
+    });
+  return ffmpegCommand;
+};
+
 const convertFile = async (
   inputPath: string,
   outputPath: string,
@@ -26,63 +118,20 @@ const convertFile = async (
 
   const ffmpegCommand = ffmpeg(inputPath);
 
-  if (isVideo && format.startsWith("audio/")) {
-    ffmpegCommand.noVideo();
-  } else if (isAudio && format.startsWith("video/")) {
-    throw new Error("Cannot convert audio to video");
+  if (isVideo) {
+    if (["mp3", "wav", "aac", "ogg"].includes(format)) {
+      convertVideoToAudio(ffmpegCommand, format, outputPath);
+    } else {
+      convertVideoToVideo(ffmpegCommand, format, outputPath);
+    }
+  } else if (isAudio) {
+    if (format.startsWith("video/")) {
+      throw new Error("Cannot convert audio to video");
+    }
+    convertAudioToAudio(ffmpegCommand, format, outputPath);
   }
 
-  if (isAudio) {
-    switch (format) {
-      case "mp3":
-        ffmpegCommand.audioCodec("libmp3lame");
-        break;
-      case "wav":
-        ffmpegCommand.audioCodec("pcm_s16le");
-        break;
-      case "ogg":
-        ffmpegCommand.audioCodec("libvorbis");
-        break;
-      case "aac":
-        ffmpegCommand.audioCodec("aac");
-        break;
-      default:
-        throw new Error(`Unsupported audio format: ${format}`);
-    }
-  } else if (isVideo) {
-    switch (format) {
-      case "mp4":
-        ffmpegCommand.videoCodec("libx264");
-        break;
-      case "webm":
-        ffmpegCommand.videoCodec("libvpx-vp9");
-        break;
-      case "avi":
-        ffmpegCommand.videoCodec("mpeg4");
-        break;
-      case "mov":
-        ffmpegCommand.videoCodec("prores_ks");
-        break;
-      case "mp3":
-        ffmpegCommand.noVideo().audioCodec("libmp3lame").output(outputPath.replace(/\.[^.]+$/, '.mp3'));
-        break;
-      case "wav":
-        ffmpegCommand.noVideo().audioCodec("pcm_s16le").output(outputPath.replace(/\.[^.]+$/, '.wav'));
-        break;
-      case "aac":
-        ffmpegCommand.noVideo().audioCodec("aac").output(outputPath.replace(/\.[^.]+$/, '.aac'));
-        break;
-      case "ogg":
-        ffmpegCommand.noVideo().audioCodec("libvorbis").output(outputPath.replace(/\.[^.]+$/, '.ogg'));
-        break;
-      default:
-        throw new Error(`Unsupported video format: ${format}`);
-    }
-  }
-
-  ffmpegCommand
-    .outputOptions("-preset fast")
-    .outputOptions("-crf 22");
+  ffmpegCommand.outputOptions("-preset fast").outputOptions("-crf 22");
 
   return new Promise<void>((resolve, reject) => {
     ffmpegCommand
@@ -156,6 +205,7 @@ app.post(
       });
 
       console.log("File written successfully, starting conversion");
+      console.log(inputPath, outputPath, format, fileType);
 
       try {
         await convertFile(inputPath, outputPath, format, fileType);
