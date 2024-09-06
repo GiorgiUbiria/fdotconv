@@ -58,6 +58,6 @@
   },
   "lint-staged": {
     "/**/*.{ts,tsx,html,css}": "prettier --write",
-    "/**/*.{ts,tsx}": "npm run lint"
+    "/**/*.{ts,tsx}": ["npm run lint", "prettier --write"]
   }
 }
