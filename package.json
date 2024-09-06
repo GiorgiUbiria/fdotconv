@@ -52,12 +52,16 @@
     "husky": "^9.1.5",
     "postcss": "^8",
     "prettier": "^3.3.3",
+    "prettier-plugin-tailwindcss": "^0.6.6",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
     "typescript-eslint": "^8.4.0"
   },
   "lint-staged": {
-    "/**/*.{ts,tsx,html,css}": "prettier --write",
-    "/**/*.{ts,tsx}": ["npm run lint", "prettier --write"]
+    "/**/*.{ts,tsx,html,css}": "prettier --write --ignore-path .gitignore",
+    "/**/*.{ts,tsx}": [
+      "npm run lint",
+      "prettier --write --ignore-path .gitignore"
+    ]
   }
 }
