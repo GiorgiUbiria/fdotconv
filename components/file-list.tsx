@@ -374,8 +374,7 @@ export function FileList({ files }: FileListProps) {
                         <CloverIcon className="h-5 w-5 animate-spin text-yellow-500" />
                       ) : fileState.convertedUrl ? (
                         <div className="flex items-center">
-                          {file.type.startsWith('video/') &&
-                          downloadTimers[file.name] > 0 ? (
+                          {downloadTimers[file.name] > 0 ? (
                             <>
                               <DownloadIcon
                                 className="mr-2 h-5 w-5 cursor-pointer text-blue-500 transition-colors duration-200 hover:text-blue-600"
