@@ -15,6 +15,7 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 import { getConversionOptions } from '@/lib/utils';
 import { toast } from 'sonner';
 import { FileListItem } from './file-list-item';
+import { saveAs } from 'file-saver';
 
 type FileListProps = {
   files: File[];
@@ -90,13 +91,21 @@ export function FileList({ files }: FileListProps) {
         conversionStates[file.name]?.selectedFormat ||
         getConversionOptions(file.type)[0];
 
-      const conversionPromise = file.type.startsWith('video/')
-        ? convertVideoFile(file, format)
-        : convertFile(file, format);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('format', format);
 
-      conversionPromises.current[file.name] = conversionPromise
-        .then((convertedFile) => {
-          setConverted(file.name, convertedFile || null);
+      conversionPromises.current[file.name] = fetch('/api/convert', {
+        method: 'POST',
+        body: formData,
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error('Conversion failed');
+          }
+          const blob = await response.blob();
+          const url = URL.createObjectURL(blob);
+          setConverted(file.name, url);
           if (file.type.startsWith('video/')) {
             setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
             const timer = setInterval(() => {
@@ -110,7 +119,7 @@ export function FileList({ files }: FileListProps) {
               });
             }, 1000);
           }
-          return convertedFile || null;
+          return url;
         })
         .catch((error) => {
           console.error(`Conversion failed for ${file.name}:`, error);
@@ -181,22 +190,7 @@ export function FileList({ files }: FileListProps) {
   };
 
   const downloadFile = (url: string, fileName: string) => {
-    fetch(url)
-      .then((response) => response.blob())
-      .then((blob) => {
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      })
-      .catch((error) => {
-        console.error('Download failed:', error);
-        toast.error(`Failed to download files`);
-      });
+    saveAs(url, fileName);
   };
 
   const handleAddFiles = useCallback(
