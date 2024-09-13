@@ -40,40 +40,47 @@ const convertVideoToVideo = async (
   return ffmpegCommand;
 };
 
-const convertVideoToAudio = (
+const convertVideoToAudio = async (
   ffmpegCommand: ffmpeg.FfmpegCommand,
   format: string,
   outputPath: string
 ) => {
   console.log('Converting video to audio', format, outputPath);
-  ffmpegCommand.noVideo();
+
+  ffmpegCommand.noVideo().output(outputPath).outputOptions('-y');
 
   switch (format) {
     case 'mp3':
-      ffmpegCommand.audioCodec('libmp3lame');
+      ffmpegCommand.audioCodec('libmp3lame').outputOptions('-q:a 0');
       break;
     case 'wav':
-      ffmpegCommand.audioCodec('pcm_s16le');
+      ffmpegCommand
+        .audioCodec('pcm_s16le')
+        .audioFrequency(44100)
+        .audioChannels(2);
       break;
     case 'aac':
-      ffmpegCommand.audioCodec('aac');
+      ffmpegCommand.audioCodec('aac').audioBitrate('192k');
       break;
     case 'ogg':
-      ffmpegCommand.audioCodec('libvorbis');
+      ffmpegCommand.audioCodec('libvorbis').audioBitrate('192k');
       break;
     default:
       throw new Error(`Unsupported audio format: ${format}`);
   }
 
-  ffmpegCommand
-    .output(outputPath)
-    .outputOptions('-y')
-    .on('error', (err) => {
-      console.error('Error:', err.message);
-      throw err;
-    });
-
-  return ffmpegCommand;
+  return new Promise((resolve, reject) => {
+    ffmpegCommand
+      .on('end', () => {
+        console.log('Conversion finished successfully');
+        resolve(ffmpegCommand);
+      })
+      .on('error', (err) => {
+        console.error('Error:', err.message);
+        reject(err);
+      })
+      .run();
+  });
 };
 
 const convertAudioToAudio = (
