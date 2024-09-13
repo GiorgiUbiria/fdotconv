@@ -97,19 +97,17 @@ export function FileList({ files }: FileListProps) {
       conversionPromises.current[file.name] = conversionPromise
         .then((convertedFile) => {
           setConverted(file.name, convertedFile || null);
-          if (file.type.startsWith('video/')) {
-            setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
-            const timer = setInterval(() => {
-              setDownloadTimers((prev) => {
-                const newTime = prev[file.name] - 1;
-                if (newTime <= 0) {
-                  clearInterval(timer);
-                  return { ...prev, [file.name]: 0 };
-                }
-                return { ...prev, [file.name]: newTime };
-              });
-            }, 1000);
-          }
+          setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
+          const timer = setInterval(() => {
+            setDownloadTimers((prev) => {
+              const newTime = prev[file.name] - 1;
+              if (newTime <= 0) {
+                clearInterval(timer);
+                return { ...prev, [file.name]: 0 };
+              }
+              return { ...prev, [file.name]: newTime };
+            });
+          }, 1000);
           return convertedFile || null;
         })
         .catch((error) => {
@@ -380,8 +378,7 @@ export function FileList({ files }: FileListProps) {
                         <CloverIcon className="h-5 w-5 animate-spin text-yellow-500" />
                       ) : fileState.convertedUrl ? (
                         <div className="flex items-center">
-                          {file.type.startsWith('video/') &&
-                          downloadTimers[file.name] > 0 ? (
+                          {downloadTimers[file.name] > 0 ? (
                             <>
                               <DownloadIcon
                                 className="mr-2 h-5 w-5 cursor-pointer text-blue-500 transition-colors duration-200 hover:text-blue-600"
