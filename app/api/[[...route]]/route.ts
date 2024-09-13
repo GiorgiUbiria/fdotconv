@@ -47,6 +47,27 @@ const convertVideoToAudio = async (
 ) => {
   console.log('Converting video to audio', format, outputPath);
 
+  const hasAudioStream = await new Promise<boolean>((resolve) => {
+    ffmpegCommand.ffprobe((err, metadata) => {
+      if (err) {
+        console.error('Error probing file:', err);
+        resolve(false);
+      } else {
+        const audioStreams = metadata.streams.filter(
+          (stream) => stream.codec_type === 'audio'
+        );
+        resolve(audioStreams.length > 0);
+      }
+    });
+  });
+
+  if (!hasAudioStream) {
+    console.log('Input video does not have an audio stream');
+    return Promise.reject(
+      new Error('Input video does not have an audio stream')
+    );
+  }
+
   ffmpegCommand.noVideo().output(outputPath).outputOptions('-y');
 
   switch (format) {
@@ -127,7 +148,20 @@ const convertFile = async (
 
   if (isVideo) {
     if (['mp3', 'wav', 'aac', 'ogg'].includes(format)) {
-      convertVideoToAudio(ffmpegCommand, format, outputPath);
+      try {
+        await convertVideoToAudio(ffmpegCommand, format, outputPath);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          error.message === 'Input video does not have an audio stream'
+        ) {
+          console.error('Cannot convert video to audio: No audio stream found');
+          throw new Error(
+            'Cannot convert video to audio: No audio stream found'
+          );
+        }
+        throw error;
+      }
     } else {
       convertVideoToVideo(ffmpegCommand, format, outputPath);
     }
