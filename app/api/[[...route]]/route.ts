@@ -3,6 +3,7 @@ import { handle } from 'hono/vercel';
 import { serveStatic } from '@hono/node-server/serve-static';
 import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
+import tmp from 'tmp';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { PassThrough, Readable } from 'stream';
@@ -218,49 +219,53 @@ app.post(
       }
 
       console.log(`Processing file: ${name} to format: ${format}`);
-      const inputPath = path.join('uploads', name);
-      const outputPath = path.join(
-        'converted',
-        `${path.parse(name).name}.${format}`
-      );
+
+      // Create temporary files
+      const tmpInputFile = tmp.fileSync({ postfix: path.extname(name) });
+      const tmpOutputFile = tmp.fileSync({ postfix: `.${format}` });
 
       try {
-        await fs.promises.mkdir('uploads', { recursive: true });
-        await fs.promises.mkdir('converted', { recursive: true });
-      } catch (err) {
-        console.error('Error creating directories:', err);
-        return c.json({ error: 'Failed to create directories' }, 500);
-      }
+        const fileBuffer = await file.arrayBuffer();
+        const readStream = Readable.from(Buffer.from(fileBuffer));
+        const writeStream = createWriteStream(tmpInputFile.name);
 
-      const writeStream = createWriteStream(inputPath);
-      const fileBuffer = await file.arrayBuffer();
-      const readStream = Readable.from(Buffer.from(fileBuffer));
-      readStream.pipe(writeStream);
-
-      await new Promise((resolve, reject) => {
-        writeStream.on('finish', resolve);
-        writeStream.on('error', (err) => {
-          console.error('Error writing file:', err);
-          reject(err);
+        await new Promise((resolve, reject) => {
+          readStream
+            .pipe(writeStream)
+            .on('finish', resolve)
+            .on('error', reject);
         });
-      });
 
-      console.log('File written successfully, starting conversion');
-      console.log(inputPath, outputPath, format, fileType);
+        console.log('File written to temporary location, starting conversion');
+        console.log(tmpInputFile.name, tmpOutputFile.name, format, fileType);
 
-      try {
-        await convertFile(inputPath, outputPath, format, fileType);
-      } catch (err) {
-        console.error('Conversion error:', err);
-        return c.json(
-          { error: 'Conversion failed', details: (err as Error).message },
-          500
+        await convertFile(
+          tmpInputFile.name,
+          tmpOutputFile.name,
+          format,
+          fileType
         );
-      } finally {
-        await fs.promises.unlink(inputPath);
-      }
 
-      return c.json({ success: true, outputPath });
+        // Read the converted file
+        const convertedBuffer = await fs.promises.readFile(tmpOutputFile.name);
+
+        // Set appropriate headers for file download
+        c.header(
+          'Content-Type',
+          mime.lookup(tmpOutputFile.name) || 'application/octet-stream'
+        );
+        c.header(
+          'Content-Disposition',
+          `attachment; filename="${path.basename(tmpOutputFile.name)}"`
+        );
+
+        // Return the converted file as a response
+        return c.body(convertedBuffer);
+      } finally {
+        // Clean up temporary files
+        tmpInputFile.removeCallback();
+        tmpOutputFile.removeCallback();
+      }
     } catch (err) {
       console.error('Unexpected error:', err);
       return c.json(
