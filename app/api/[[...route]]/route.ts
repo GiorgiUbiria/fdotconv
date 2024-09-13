@@ -189,7 +189,8 @@ app.post(
         const writeStream = createWriteStream(tmpInputFile.name);
 
         await new Promise((resolve, reject) => {
-          readStream.pipe(writeStream)
+          readStream
+            .pipe(writeStream)
             .on('finish', resolve)
             .on('error', reject);
         });
@@ -197,14 +198,25 @@ app.post(
         console.log('File written to temporary location, starting conversion');
         console.log(tmpInputFile.name, tmpOutputFile.name, format, fileType);
 
-        await convertFile(tmpInputFile.name, tmpOutputFile.name, format, fileType);
+        await convertFile(
+          tmpInputFile.name,
+          tmpOutputFile.name,
+          format,
+          fileType
+        );
 
         // Read the converted file
         const convertedBuffer = await fs.promises.readFile(tmpOutputFile.name);
 
         // Set appropriate headers for file download
-        c.header('Content-Type', mime.lookup(tmpOutputFile.name) || 'application/octet-stream');
-        c.header('Content-Disposition', `attachment; filename="${path.basename(tmpOutputFile.name)}"`);
+        c.header(
+          'Content-Type',
+          mime.lookup(tmpOutputFile.name) || 'application/octet-stream'
+        );
+        c.header(
+          'Content-Disposition',
+          `attachment; filename="${path.basename(tmpOutputFile.name)}"`
+        );
 
         // Return the converted file as a response
         return c.body(convertedBuffer);
