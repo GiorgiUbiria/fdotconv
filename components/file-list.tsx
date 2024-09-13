@@ -86,27 +86,42 @@ export function FileList({ files }: FileListProps) {
       toast.loading(`Converting ${file.name}...`, {
         id: `converting-${file.name}`,
       });
-
       const format =
-        conversionStates[file.name]?.selectedFormat ||
-        getConversionOptions(file.type)[0];
+        (conversionStates[file.name]?.selectedFormat ||
+          getConversionOptions(file.type)[0]) ??
+        '';
 
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('format', format);
+      conversionPromises.current[file.name] = (async (): Promise<
+        string | null
+      > => {
+        try {
+          let url: string;
+          if (file.type.startsWith('image/')) {
+            url = (await convertFile(file, format)) as string;
+          } else {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('format', format);
 
-      conversionPromises.current[file.name] = fetch('/api/convert', {
-        method: 'POST',
-        body: formData,
-      })
-        .then(async (response) => {
-          if (!response.ok) {
-            throw new Error('Conversion failed');
+            const response = await fetch('/api/convert', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (!response.ok) {
+              throw new Error('Conversion failed');
+            }
+
+            const blob = await response.blob();
+            url = URL.createObjectURL(blob);
           }
-          const blob = await response.blob();
-          const url = URL.createObjectURL(blob);
+
           setConverted(file.name, url);
-          if (file.type.startsWith('video/')) {
+          if (
+            file.type.startsWith('video/') ||
+            file.type.startsWith('audio/') ||
+            file.type.startsWith('image/')
+          ) {
             setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
             const timer = setInterval(() => {
               setDownloadTimers((prev) => {
@@ -120,17 +135,16 @@ export function FileList({ files }: FileListProps) {
             }, 1000);
           }
           return url;
-        })
-        .catch((error) => {
+        } catch (error) {
           console.error(`Conversion failed for ${file.name}:`, error);
           setConversionFailed(file.name);
           return null;
-        })
-        .finally(() => {
+        } finally {
           delete conversionPromises.current[file.name];
           toast.dismiss(`converting-${file.name}`);
           toast.success(`Conversion complete for ${file.name}`);
-        });
+        }
+      })();
 
       return conversionPromises.current[file.name];
     },
