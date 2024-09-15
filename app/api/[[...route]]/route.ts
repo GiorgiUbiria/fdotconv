@@ -1,20 +1,17 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
-import { serveStatic } from '@hono/node-server/serve-static';
 import ffmpeg from 'fluent-ffmpeg';
 import fs from 'fs';
 import tmp from 'tmp';
 import path from 'path';
 import { createWriteStream } from 'fs';
-import { PassThrough, Readable } from 'stream';
+import { Readable } from 'stream';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import mime from 'mime-types';
-import { ReadableStream } from 'stream/web';
+import { conversionQueue } from '@/lib/utils';
 
 const app = new Hono().basePath('/api');
-
-app.use('/*', serveStatic({ root: './public' }));
 
 const convertVideoToVideo = async (
   ffmpegCommand: ffmpeg.FfmpegCommand,
@@ -220,7 +217,6 @@ app.post(
 
       console.log(`Processing file: ${name} to format: ${format}`);
 
-      // Create temporary files
       const tmpInputFile = tmp.fileSync({ postfix: path.extname(name) });
       const tmpOutputFile = tmp.fileSync({ postfix: `.${format}` });
 
@@ -239,17 +235,12 @@ app.post(
         console.log('File written to temporary location, starting conversion');
         console.log(tmpInputFile.name, tmpOutputFile.name, format, fileType);
 
-        await convertFile(
-          tmpInputFile.name,
-          tmpOutputFile.name,
-          format,
-          fileType
+        await conversionQueue.add(() =>
+          convertFile(tmpInputFile.name, tmpOutputFile.name, format, fileType)
         );
 
-        // Read the converted file
         const convertedBuffer = await fs.promises.readFile(tmpOutputFile.name);
 
-        // Set appropriate headers for file download
         c.header(
           'Content-Type',
           mime.lookup(tmpOutputFile.name) || 'application/octet-stream'
@@ -259,10 +250,8 @@ app.post(
           `attachment; filename="${path.basename(tmpOutputFile.name)}"`
         );
 
-        // Return the converted file as a response
         return c.body(convertedBuffer);
       } finally {
-        // Clean up temporary files
         tmpInputFile.removeCallback();
         tmpOutputFile.removeCallback();
       }
