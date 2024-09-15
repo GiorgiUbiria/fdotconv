@@ -1,6 +1,6 @@
 'use client';
 
-import { convertFile, convertVideoFile } from '@/lib/utils';
+import { convertFile, downloadFile } from '@/lib/utils';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import {
   FileIcon,
@@ -14,8 +14,6 @@ import {
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { getConversionOptions } from '@/lib/utils';
 import { toast } from 'sonner';
-import { FileListItem } from './file-list-item';
-import { saveAs } from 'file-saver';
 
 type FileListProps = {
   files: File[];
@@ -162,7 +160,9 @@ export function FileList({ files }: FileListProps) {
       .then((results) => {
         console.log('All conversions completed');
         files.forEach((file, index) => {
-          setConverted(file.name, results[index]);
+          if (results[index]) {
+            setConverted(file.name, results[index]);
+          }
         });
         toast.success('All files converted successfully');
       })
@@ -201,10 +201,6 @@ export function FileList({ files }: FileListProps) {
       }
     });
     toast.success('All converted files downloaded');
-  };
-
-  const downloadFile = (url: string, fileName: string) => {
-    saveAs(url, fileName);
   };
 
   const handleAddFiles = useCallback(
