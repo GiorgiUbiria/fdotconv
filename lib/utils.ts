@@ -65,16 +65,25 @@ export async function convertFile(file: File, to: string) {
       let ffmpegCommand: string[];
 
       if (file.type.startsWith('image/')) {
-        // Image-to-image conversion
         ffmpegCommand = [
           '-i',
           inputFileName,
           '-vf',
           "scale='min(1920,iw)':'-1'",
+          '-preset',
+          'fast',
+          '-y',
           outputFileName,
         ];
       } else {
-        ffmpegCommand = ['-i', inputFileName, outputFileName];
+        ffmpegCommand = [
+          '-i',
+          inputFileName,
+          '-preset',
+          'fast',
+          '-y',
+          outputFileName,
+        ];
       }
 
       console.log('FFmpeg command:', ffmpegCommand);
@@ -82,7 +91,16 @@ export async function convertFile(file: File, to: string) {
       await ffmpegClient.exec(ffmpegCommand);
 
       const convertedFile = await ffmpegClient.readFile(outputFileName);
-      const mimeType = `image/${to}`;
+
+      let mimeType = `image/${to}`;
+      if (to === 'jpeg') mimeType = 'image/jpeg';
+      else if (to === 'png') mimeType = 'image/png';
+      else if (to === 'webp') mimeType = 'image/webp';
+      else if (to === 'avif') mimeType = 'image/avif';
+      else if (to === 'gif') mimeType = 'image/gif';
+      else if (to === 'bmp') mimeType = 'image/bmp';
+      else if (to === 'tiff') mimeType = 'image/tiff';
+
       const blob = new Blob([convertedFile], { type: mimeType });
       const url = URL.createObjectURL(blob);
 
@@ -107,7 +125,7 @@ export async function convertFile(file: File, to: string) {
 
 export const getConversionOptions = (fileType: string) => {
   if (fileType.startsWith('image/')) {
-    return ['jpeg', 'png', 'webp', 'avif'];
+    return ['jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff'];
   } else if (fileType.startsWith('video/')) {
     return ['mp4', 'webm', 'avi', 'mov', 'mp3', 'wav', 'aac', 'ogg'];
   } else if (fileType.startsWith('audio/')) {
@@ -115,62 +133,6 @@ export const getConversionOptions = (fileType: string) => {
   }
   return [];
 };
-
-export async function convertVideoFile(file: File, to: string) {
-  console.log(`Starting video conversion: ${file.name} to ${to}`);
-  return conversionQueue.add(async () => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('format', to);
-
-      console.log(`Sending conversion request to server: ${file.name}`);
-      const response = await fetch('/api/convert', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `Server responded with an error: ${response.status} ${response.statusText}`
-        );
-        console.error(`Error details: ${errorText}`);
-        throw new Error(
-          `Conversion failed: ${response.status} ${response.statusText}`
-        );
-      }
-
-      console.log(`Received response from server for ${file.name}`);
-      const result = await response.json();
-      if (result.error) {
-        console.error(`Server reported an error: ${result.error}`);
-        throw new Error(result.error);
-      }
-
-      if (!result.outputPath) {
-        console.error('Server response is missing output path');
-        throw new Error('Output path not provided');
-      }
-
-      const convertedFileUrl = `/api/converted/${path.basename(
-        result.outputPath
-      )}`;
-      console.log(`Conversion successful: ${file.name} -> ${convertedFileUrl}`);
-
-      return convertedFileUrl;
-    } catch (error) {
-      console.error('Error during file conversion:', error);
-      if (error instanceof Error) {
-        console.error(`Stack trace: ${error.stack}`);
-        throw new Error(`File conversion failed: ${error.message}`);
-      } else {
-        console.error('Unknown error object:', error);
-        throw new Error('File conversion failed due to an unknown error');
-      }
-    }
-  });
-}
 
 export function downloadFile(url: string, fileName: string) {
   saveAs(url, fileName);

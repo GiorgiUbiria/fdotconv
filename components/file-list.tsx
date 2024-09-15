@@ -1,6 +1,6 @@
 'use client';
 
-import { convertFile, convertVideoFile, downloadFile } from '@/lib/utils';
+import { convertFile, downloadFile } from '@/lib/utils';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import {
   FileIcon,
