@@ -4,8 +4,9 @@ import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import pQueue from 'p-queue';
 import path from 'path';
+import { saveAs } from 'file-saver';
 
-const conversionQueue = new pQueue({ concurrency: 3 });
+export const conversionQueue = new pQueue({ concurrency: 5 });
 
 let ffmpegInstance: FFmpeg | null = null;
 
@@ -169,4 +170,8 @@ export async function convertVideoFile(file: File, to: string) {
       }
     }
   });
+}
+
+export function downloadFile(url: string, fileName: string) {
+  saveAs(url, fileName);
 }
