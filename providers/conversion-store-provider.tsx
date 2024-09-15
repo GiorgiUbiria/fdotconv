@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useRef, useEffect, useState } from 'react';
+import { createContext, useContext, useRef } from 'react';
 import {
   createConversionStore,
   type ConversionStore,
@@ -17,19 +17,14 @@ export const ConversionStoreProvider = ({
   children: React.ReactNode;
 }) => {
   const storeRef = useRef<StoreApi<ConversionStore>>();
-  const [isHydrated, setIsHydrated] = useState(false);
 
   if (!storeRef.current) {
     storeRef.current = createConversionStore();
   }
 
-  useEffect(() => {
-    setIsHydrated(true);
-  }, []);
-
   return (
     <ConversionStoreContext.Provider value={storeRef.current}>
-      {isHydrated ? children : null}
+      {children}
     </ConversionStoreContext.Provider>
   );
 };
