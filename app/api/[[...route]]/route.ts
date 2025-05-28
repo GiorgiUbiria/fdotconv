@@ -1,294 +1,217 @@
 import { Hono } from 'hono';
 import { handle } from 'hono/vercel';
-import ffmpeg from 'fluent-ffmpeg';
-import fs from 'fs';
+import fs from 'fs/promises';
 import tmp from 'tmp';
 import path from 'path';
 import { createWriteStream } from 'fs';
 import { Readable } from 'stream';
-import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import mime from 'mime-types';
+import { ffmpegConverter } from '@/lib/ffmpeg';
 import { conversionQueue } from '@/lib/utils';
+import { performanceMonitor } from '@/lib/performance-monitor';
 
 const app = new Hono().basePath('/api');
 
-const convertVideoToVideo = async (
-  ffmpegCommand: ffmpeg.FfmpegCommand,
-  format: string,
-  outputPath: string
-) => {
-  switch (format) {
-    case 'mp4':
-      ffmpegCommand.videoCodec('libx264');
-      break;
-    case 'webm':
-      ffmpegCommand.videoCodec('libvpx-vp9');
-      break;
-    case 'avi':
-      ffmpegCommand.videoCodec('mpeg4');
-      break;
-    case 'mov':
-      ffmpegCommand.videoCodec('prores_ks');
-      break;
-    default:
-      throw new Error(`Unsupported video format: ${format}`);
-  }
-  ffmpegCommand.output(outputPath);
-  return ffmpegCommand;
-};
+// Store active conversion progress
+const conversionProgress = new Map<string, number>();
 
-const convertVideoToAudio = async (
-  ffmpegCommand: ffmpeg.FfmpegCommand,
-  format: string,
-  outputPath: string
-) => {
-  console.log('Converting video to audio', format, outputPath);
-
-  const hasAudioStream = await new Promise<boolean>((resolve) => {
-    ffmpegCommand.ffprobe((err, metadata) => {
-      if (err) {
-        console.error('Error probing file:', err);
-        resolve(false);
-      } else {
-        const audioStreams = metadata.streams.filter(
-          (stream) => stream.codec_type === 'audio'
-        );
-        resolve(audioStreams.length > 0);
-      }
-    });
-  });
-
-  if (!hasAudioStream) {
-    console.log('Input video does not have an audio stream');
-    return Promise.reject(
-      new Error('Input video does not have an audio stream')
-    );
-  }
-
-  ffmpegCommand.noVideo().output(outputPath).outputOptions('-y');
-
-  switch (format) {
-    case 'mp3':
-      ffmpegCommand.audioCodec('libmp3lame').outputOptions('-q:a 0');
-      break;
-    case 'wav':
-      ffmpegCommand
-        .audioCodec('pcm_s16le')
-        .audioFrequency(44100)
-        .audioChannels(2);
-      break;
-    case 'aac':
-      ffmpegCommand.audioCodec('aac').audioBitrate('192k');
-      break;
-    case 'ogg':
-      ffmpegCommand.audioCodec('libvorbis').audioBitrate('192k');
-      break;
-    default:
-      throw new Error(`Unsupported audio format: ${format}`);
-  }
-
-  return new Promise((resolve, reject) => {
-    ffmpegCommand
-      .on('end', () => {
-        console.log('Conversion finished successfully');
-        resolve(ffmpegCommand);
-      })
-      .on('error', (err) => {
-        console.error('Error:', err.message);
-        reject(err);
-      })
-      .run();
-  });
-};
-
-const convertAudioToAudio = (
-  ffmpegCommand: ffmpeg.FfmpegCommand,
-  format: string,
-  outputPath: string
-) => {
-  switch (format) {
-    case 'mp3':
-      ffmpegCommand.audioCodec('libmp3lame');
-      break;
-    case 'wav':
-      ffmpegCommand.audioCodec('pcm_s16le');
-      break;
-    case 'ogg':
-      ffmpegCommand.audioCodec('libvorbis');
-      break;
-    case 'aac':
-      ffmpegCommand.audioCodec('aac');
-      break;
-    default:
-      throw new Error(`Unsupported audio format: ${format}`);
-  }
-  ffmpegCommand
-    .output(outputPath)
-    .outputOptions('-y')
-    .on('error', (err) => {
-      console.error('Error:', err.message);
-      throw err;
-    });
-  return ffmpegCommand;
-};
-
-const convertFile = async (
-  inputPath: string,
-  outputPath: string,
-  format: string,
-  fileType: string
-) => {
-  const isAudio = fileType.startsWith('audio/');
-  const isVideo = fileType.startsWith('video/');
-
-  const ffmpegCommand = ffmpeg(inputPath);
-
-  if (isVideo) {
-    if (['mp3', 'wav', 'aac', 'ogg'].includes(format)) {
-      try {
-        await convertVideoToAudio(ffmpegCommand, format, outputPath);
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message === 'Input video does not have an audio stream'
-        ) {
-          console.error('Cannot convert video to audio: No audio stream found');
-          throw new Error(
-            'Cannot convert video to audio: No audio stream found'
-          );
-        }
-        throw error;
-      }
-    } else {
-      convertVideoToVideo(ffmpegCommand, format, outputPath);
+app.post('/convert', async (c) => {
+  console.log('Received conversion request');
+  
+  let fileName = 'unknown';
+  
+  try {
+    const formData = await c.req.formData();
+    const file = formData.get('file') as File;
+    const format = formData.get('format') as string;
+    const quality = (formData.get('quality') as string) || 'medium';
+    
+    if (!file || !format) {
+      return c.json({ error: 'Missing file or format' }, 400);
     }
-  } else if (isAudio) {
-    if (format.startsWith('video/')) {
-      throw new Error('Cannot convert audio to video');
+
+    const { name, type: fileType, size } = file;
+    fileName = name; // Store for error handling
+    
+    // Validate file size (100MB limit)
+    const maxSize = 100 * 1024 * 1024; // 100MB
+    if (size > maxSize) {
+      return c.json({ error: 'File size exceeds 100MB limit' }, 400);
     }
-    convertAudioToAudio(ffmpegCommand, format, outputPath);
-  }
 
-  ffmpegCommand.outputOptions('-preset fast').outputOptions('-crf 22');
+    // Validate file type
+    const supportedTypes = ['image/', 'video/', 'audio/'];
+    if (!supportedTypes.some(type => fileType.startsWith(type))) {
+      return c.json({ error: 'Unsupported file type' }, 400);
+    }
 
-  return new Promise<void>((resolve, reject) => {
-    ffmpegCommand
-      .on('start', (commandLine) => {
-        console.log('FFmpeg process started:', commandLine);
-      })
-      .on('progress', (progress) => {
-        console.log(`Processing: ${progress.percent}% done`);
-      })
-      .on('end', () => {
-        console.log('Conversion completed successfully');
-        resolve();
-      })
-      .on('error', (err) => {
-        console.error('FFmpeg error:', err);
-        reject(err);
-      })
-      .run();
-  });
-};
+    // Validate quality
+    if (!['fast', 'low', 'medium', 'high'].includes(quality)) {
+      return c.json({ error: 'Invalid quality setting' }, 400);
+    }
 
-app.post(
-  '/convert',
-  zValidator(
-    'form',
-    z.object({
-      file: z.instanceof(File),
-      format: z.string(),
-    })
-  ),
-  async (c) => {
-    console.log('Received conversion request');
+    console.log(`Processing file: ${name} (${fileType}) to format: ${format} with quality: ${quality}`);
+
+    // Initialize progress tracking IMMEDIATELY before any async processing
+    conversionProgress.set(name, 0);
+    console.log(`Progress tracking initialized for ${name}`);
+
+    // Start performance monitoring
+    const inputFormat = path.extname(name).slice(1) || 'unknown';
+    performanceMonitor.startConversion(name, size, inputFormat, format, quality);
+
+    // Create temporary files
+    const inputExt = path.extname(name);
+    const tmpInputFile = tmp.fileSync({ 
+      postfix: inputExt,
+      prefix: 'input_'
+    });
+    
+    const tmpOutputFile = tmp.fileSync({ 
+      postfix: `.${format}`,
+      prefix: 'output_'
+    });
+
     try {
-      const { file, format } = await c.req.parseBody();
-      if (!file || !(file instanceof File)) {
-        console.error('No file uploaded');
-        return c.json({ error: 'No file uploaded' }, 400);
-      }
+      // Write uploaded file to temporary location
+      const fileBuffer = await file.arrayBuffer();
+      const readStream = Readable.from(Buffer.from(fileBuffer));
+      const writeStream = createWriteStream(tmpInputFile.name);
 
-      const { name, type: fileType } = file;
-      if (typeof format !== 'string') {
-        return c.json({ error: 'Invalid format' }, 400);
-      }
+      await new Promise((resolve, reject) => {
+        readStream
+          .pipe(writeStream)
+          .on('finish', resolve)
+          .on('error', reject);
+      });
 
-      console.log(`Processing file: ${name} to format: ${format}`);
+      console.log('File written to temporary location, starting conversion');
 
-      const tmpInputFile = tmp.fileSync({ postfix: path.extname(name) });
-      const tmpOutputFile = tmp.fileSync({ postfix: `.${format}` });
-
-      try {
-        const fileBuffer = await file.arrayBuffer();
-        const readStream = Readable.from(Buffer.from(fileBuffer));
-        const writeStream = createWriteStream(tmpInputFile.name);
-
-        await new Promise((resolve, reject) => {
-          readStream
-            .pipe(writeStream)
-            .on('finish', resolve)
-            .on('error', reject);
+      // Add conversion to queue and process
+      const result = await conversionQueue.add(async () => {
+        return ffmpegConverter.convert({
+          inputPath: tmpInputFile.name,
+          outputPath: tmpOutputFile.name,
+          format,
+          fileType,
+          quality: quality as 'fast' | 'low' | 'medium' | 'high',
+          onProgress: (progress) => {
+            console.log(`Conversion progress: ${progress.toFixed(1)}%`);
+            conversionProgress.set(name, progress);
+          }
         });
+      });
 
-        console.log('File written to temporary location, starting conversion');
-        console.log(tmpInputFile.name, tmpOutputFile.name, format, fileType);
+      if (!result || !result.success) {
+        throw new Error(result?.error || 'Conversion failed');
+      }
 
-        await conversionQueue.add(() =>
-          convertFile(tmpInputFile.name, tmpOutputFile.name, format, fileType)
-        );
+      // Read converted file
+      const convertedBuffer = await fs.readFile(tmpOutputFile.name);
+      
+      // Get proper MIME type
+      const mimeType = mime.lookup(tmpOutputFile.name) || 'application/octet-stream';
+      
+      // Generate filename
+      const baseName = path.parse(name).name;
+      const outputFileName = `${baseName}.${format}`;
 
-        const convertedBuffer = await fs.promises.readFile(tmpOutputFile.name);
+      // Set response headers and return file
+      c.header('Content-Type', mimeType);
+      c.header('Content-Disposition', `attachment; filename="${outputFileName}"`);
+      c.header('Content-Length', convertedBuffer.length.toString());
 
-        c.header(
-          'Content-Type',
-          mime.lookup(tmpOutputFile.name) || 'application/octet-stream'
-        );
-        c.header(
-          'Content-Disposition',
-          `attachment; filename="${path.basename(tmpOutputFile.name)}"`
-        );
+      console.log(`Conversion completed successfully: ${name} -> ${outputFileName}`);
+      
+      // End performance monitoring
+      performanceMonitor.endConversion(name, true);
+      
+      // Clean up progress tracking
+      conversionProgress.delete(name);
+      
+      // Return the file as a Response
+      return new Response(convertedBuffer, {
+        headers: {
+          'Content-Type': mimeType,
+          'Content-Disposition': `attachment; filename="${outputFileName}"`,
+          'Content-Length': convertedBuffer.length.toString(),
+        },
+      });
 
-        return c.body(convertedBuffer);
-      } finally {
+    } finally {
+      // Clean up temporary files
+      try {
         tmpInputFile.removeCallback();
         tmpOutputFile.removeCallback();
+      } catch (cleanupError) {
+        console.warn('Error cleaning up temporary files:', cleanupError);
       }
-    } catch (err) {
-      console.error('Unexpected error:', err);
-      return c.json(
-        {
-          error: 'An unexpected error occurred',
-          details: (err as Error).message,
-        },
-        500
-      );
     }
-  }
-);
 
-app.get('/converted/:filename', async (c) => {
-  const filename = c.req.param('filename');
-  const filePath = path.join('converted', filename);
-
-  try {
-    await fs.promises.access(filePath);
   } catch (err) {
-    return c.json({ error: 'File not found' }, 404);
+    console.error('Conversion error:', err);
+    
+    // End performance monitoring for failed conversion
+    const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+    performanceMonitor.endConversion(fileName, false, errorMessage);
+    
+    // Clean up progress tracking
+    conversionProgress.delete(fileName);
+    
+    return c.json({
+      error: 'Conversion failed',
+      details: errorMessage,
+    }, 500);
+  }
+});
+
+// Progress endpoint using polling instead of SSE
+app.get('/progress/:fileName', async (c) => {
+  const fileName = decodeURIComponent(c.req.param('fileName') || '');
+  
+  if (!fileName) {
+    return c.json({ error: 'Missing fileName parameter' }, 400);
   }
 
-  const stat = await fs.promises.stat(filePath);
-  const fileSize = stat.size;
+  const progress = conversionProgress.get(fileName) || 0;
+  const isActive = conversionProgress.has(fileName);
+  
+  console.log(`Progress check for ${fileName}: ${progress}% (active: ${isActive})`);
+  
+  return c.json({ 
+    progress, 
+    fileName, 
+    isActive,
+    timestamp: Date.now()
+  });
+});
 
-  const mimeType = mime.lookup(filePath) || 'application/octet-stream';
+// Health check endpoint
+app.get('/health', (c) => {
+  return c.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    ffmpeg: process.env.FFMPEG_PATH || 'ffmpeg',
+    ffprobe: process.env.FFPROBE_PATH || 'ffprobe'
+  });
+});
 
-  c.header('Content-Type', mimeType);
-  c.header('Content-Length', fileSize.toString());
-  c.header('Content-Disposition', `attachment; filename="${filename}"`);
+// Get supported formats endpoint
+app.get('/formats', (c) => {
+  const formats = {
+    image: ['jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif'],
+    video: ['mp4', 'webm', 'avi', 'mov'],
+    audio: ['mp3', 'wav', 'aac', 'ogg']
+  };
+  
+  return c.json(formats);
+});
 
-  const fileStream = fs.createReadStream(filePath);
-  return c.newResponse(fileStream as any);
+// Performance report endpoint
+app.get('/performance', (c) => {
+  const report = performanceMonitor.getPerformanceReport();
+  return c.text(report);
 });
 
 export const GET = handle(app);

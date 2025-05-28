@@ -2,6 +2,7 @@
 
 import { Dropzone } from './dropzone';
 import { FileList } from './file-list';
+import { ConversionStatus } from './conversion-status';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import { getConversionOptions } from '@/lib/utils';
 

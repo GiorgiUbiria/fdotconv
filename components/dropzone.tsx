@@ -1,7 +1,7 @@
 'use client';
 
 import { useDropzone } from 'react-dropzone';
-import { cn } from '@/lib/utils';
+import { cn, getMaxFileSize, isValidFileType, formatFileSize } from '@/lib/utils';
 import { toast } from 'sonner';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import { getConversionOptions } from '@/lib/utils';
@@ -13,28 +13,69 @@ type DropzoneProps = {
 
 export function Dropzone({ onDrop, className }: DropzoneProps) {
   const initializeFile = useConversionStore((state) => state.initializeFile);
+  const maxFileSize = getMaxFileSize();
 
   const { getRootProps, getInputProps, isDragActive, fileRejections } =
     useDropzone({
       onDrop: (acceptedFiles) => {
+        // Validate each file
+        const validFiles: File[] = [];
+        const errors: string[] = [];
+
         acceptedFiles.forEach((file) => {
-          const conversionOptions = getConversionOptions(file.type);
-          initializeFile(file, conversionOptions[0] || '');
+          // Check file size
+          if (file.size > maxFileSize) {
+            errors.push(`${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`);
+            return;
+          }
+
+          // Check file type
+          if (!isValidFileType(file.type)) {
+            errors.push(`${file.name}: Unsupported file type (${file.type})`);
+            return;
+          }
+
+          validFiles.push(file);
         });
-        onDrop(acceptedFiles);
-        toast.success(`${acceptedFiles.length} file(s) uploaded successfully`);
+
+        // Show errors if any
+        if (errors.length > 0) {
+          errors.forEach(error => toast.error(error));
+        }
+
+        // Process valid files
+        if (validFiles.length > 0) {
+          validFiles.forEach((file) => {
+            const conversionOptions = getConversionOptions(file.type);
+            initializeFile(file, conversionOptions[0] || '');
+          });
+          onDrop(validFiles);
+          toast.success(`${validFiles.length} file(s) uploaded successfully`);
+        }
       },
       maxFiles: 5,
       multiple: true,
+      maxSize: maxFileSize,
       accept: {
         'video/*': [],
         'audio/*': [],
         'image/*': [],
       },
-      onDropRejected: () => {
-        toast.error(
-          'File upload failed. Please check file types and number of files.'
-        );
+      onDropRejected: (rejectedFiles) => {
+        rejectedFiles.forEach((rejection) => {
+          const { file, errors } = rejection;
+          errors.forEach((error) => {
+            if (error.code === 'file-too-large') {
+              toast.error(`${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`);
+            } else if (error.code === 'file-invalid-type') {
+              toast.error(`${file.name}: Unsupported file type`);
+            } else if (error.code === 'too-many-files') {
+              toast.error('Too many files. Maximum 5 files allowed.');
+            } else {
+              toast.error(`${file.name}: ${error.message}`);
+            }
+          });
+        });
       },
     });
 
@@ -72,16 +113,18 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
           Drop it like it is hot!
         </p>
       ) : (
-        <p className="text-xl font-semibold text-secondary-foreground">
-          Drag and drop up to 5 video, audio, or image files here,
-          <br />
-          or click to select files
-        </p>
+        <div className="space-y-2">
+          <p className="text-xl font-semibold text-secondary-foreground">
+            Drag and drop up to 5 files here, or click to select
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Supports video, audio, and image files up to {formatFileSize(maxFileSize)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            All conversions are processed securely on our servers
+          </p>
+        </div>
       )}
-      {fileRejections.length > 0 &&
-        toast.error(
-          'You can only upload a maximum of 5 files at a time. Only video, audio, and image files are accepted.'
-        )}
     </div>
   );
 }

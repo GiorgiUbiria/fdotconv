@@ -1,6 +1,6 @@
 'use client';
 
-import { convertFile, downloadFile } from '@/lib/utils';
+import { convertFile, downloadFile, qualityOptions } from '@/lib/utils';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import {
   FileIcon,
@@ -10,10 +10,15 @@ import {
   DownloadIcon,
   RefreshCwIcon,
   PlusIcon,
+  SettingsIcon,
 } from 'lucide-react';
 import { useCallback, useRef, useState, useEffect } from 'react';
 import { getConversionOptions } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ConversionStatus } from './conversion-status';
+import { Progress } from './ui/progress';
+import { QualitySelector } from './quality-selector';
+import { BatchOperations } from './batch-operations';
 
 type FileListProps = {
   files: File[];
@@ -25,6 +30,8 @@ export function FileList({ files }: FileListProps) {
     setConverting,
     setConverted,
     setFormat,
+    setQuality,
+    setProgress,
     deleteFile,
     setConversionFailed,
     initializeFile,
@@ -73,6 +80,13 @@ export function FileList({ files }: FileListProps) {
     [setFormat]
   );
 
+  const handleQualityChange = useCallback(
+    (file: File, quality: 'fast' | 'low' | 'medium' | 'high') => {
+      setQuality(file.name, quality);
+    },
+    [setQuality]
+  );
+
   const handleConvert = useCallback(
     async (file: File) => {
       const existingPromise = conversionPromises.current[file.name];
@@ -84,54 +98,35 @@ export function FileList({ files }: FileListProps) {
       toast.loading(`Converting ${file.name}...`, {
         id: `converting-${file.name}`,
       });
-      const format =
-        (conversionStates[file.name]?.selectedFormat ||
-          getConversionOptions(file.type)[0]) ??
-        '';
+      
+      const fileState = conversionStates[file.name];
+      const format = fileState?.selectedFormat || getConversionOptions(file.type)[0] || '';
+      const quality = fileState?.selectedQuality || 'medium';
 
       conversionPromises.current[file.name] = (async (): Promise<
         string | null
       > => {
         try {
-          let url: string;
-          if (file.type.startsWith('image/')) {
-            url = (await convertFile(file, format)) as string;
-          } else {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('format', format);
-
-            const response = await fetch('/api/convert', {
-              method: 'POST',
-              body: formData,
-            });
-
-            if (!response.ok) {
-              throw new Error('Conversion failed');
-            }
-
-            const blob = await response.blob();
-            url = URL.createObjectURL(blob);
-          }
-
+          // All conversions now happen on the server with progress tracking
+          const url = await convertFile(file, format, quality, (progress) => {
+            setProgress(file.name, progress);
+          });
+          
           setConverted(file.name, url);
-          if (
-            file.type.startsWith('video/') ||
-            file.type.startsWith('audio/') ||
-            file.type.startsWith('image/')
-          ) {
-            setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
-            const timer = setInterval(() => {
-              setDownloadTimers((prev) => {
-                const newTime = prev[file.name] - 1;
-                if (newTime <= 0) {
-                  clearInterval(timer);
-                  return { ...prev, [file.name]: 0 };
-                }
-                return { ...prev, [file.name]: newTime };
-              });
-            }, 1000);
-          }
+          
+          // Set download timer for all file types
+          setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
+          const timer = setInterval(() => {
+            setDownloadTimers((prev) => {
+              const newTime = prev[file.name] - 1;
+              if (newTime <= 0) {
+                clearInterval(timer);
+                return { ...prev, [file.name]: 0 };
+              }
+              return { ...prev, [file.name]: newTime };
+            });
+          }, 1000);
+          
           return url;
         } catch (error) {
           console.error(`Conversion failed for ${file.name}:`, error);
@@ -146,7 +141,7 @@ export function FileList({ files }: FileListProps) {
 
       return conversionPromises.current[file.name];
     },
-    [conversionStates, setConverting, setConverted, setConversionFailed]
+    [conversionStates, setConverting, setConverted, setConversionFailed, setProgress]
   );
 
   const handleConvertAll = useCallback(() => {
@@ -182,15 +177,7 @@ export function FileList({ files }: FileListProps) {
     toast.success('All files deleted');
   }, [reset]);
 
-  const allConversionsComplete =
-    files.length > 0 &&
-    files.every((file) => conversionStates[file.name]?.convertedUrl);
-
-  const someConversionsFailed =
-    files.length > 0 &&
-    files.some((file) => conversionStates[file.name]?.conversionFailed);
-
-  const handleDownloadAll = () => {
+  const handleDownloadAll = useCallback(() => {
     files.forEach((file) => {
       const fileState = conversionStates[file.name];
       if (fileState?.convertedUrl) {
@@ -201,7 +188,7 @@ export function FileList({ files }: FileListProps) {
       }
     });
     toast.success('All converted files downloaded');
-  };
+  }, [files, conversionStates]);
 
   const handleAddFiles = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,69 +209,41 @@ export function FileList({ files }: FileListProps) {
       <h1 className="mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-3xl font-bold text-primary text-transparent">
         File List
       </h1>
-      <div className="mb-6 flex flex-wrap justify-between gap-3">
-        {files.length < 5 && (
-          <>
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleAddFiles}
-              multiple
-              accept="image/*,video/*,audio/*"
-              className="hidden"
-            />
-            <button
-              className="flex items-center rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground transition-colors duration-300 hover:bg-primary/80 dark:text-primary-foreground"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <PlusIcon className="mr-2 inline h-5 w-5" />
-              Add Files
-            </button>
-          </>
-        )}
-        <button
-          className="flex items-center rounded-lg bg-secondary px-4 py-2 font-bold text-secondary-foreground transition-colors duration-300 hover:bg-secondary/80 dark:text-secondary-foreground"
-          onClick={handleConvertAll}
-          disabled={isConvertingAll}
-        >
-          {isConvertingAll ? (
-            <>
-              <CloverIcon className="mr-2 h-5 w-5 animate-spin" />
-              Converting...
-            </>
-          ) : (
-            <>
-              <RefreshCwIcon className="mr-2 h-5 w-5" />
-              Convert All
-            </>
-          )}
-        </button>
-        <button
-          className="flex items-center rounded-lg bg-destructive px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-destructive/80"
-          onClick={handleDeleteAll}
-        >
-          <TrashIcon className="mr-2 h-5 w-5" />
-          Delete All
-        </button>
-        {allConversionsComplete && (
+      
+      {/* Conversion Status Bar */}
+      <ConversionStatus />
+      
+      {/* Add Files Button */}
+      {files.length < 5 && (
+        <div className="mb-6">
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleAddFiles}
+            multiple
+            accept="image/*,video/*,audio/*"
+            className="hidden"
+          />
           <button
-            className="flex items-center rounded-lg bg-green-500 px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-green-600"
-            onClick={handleDownloadAll}
+            className="flex items-center rounded-lg bg-primary px-4 py-2 font-bold text-primary-foreground transition-colors duration-300 hover:bg-primary/80"
+            onClick={() => fileInputRef.current?.click()}
           >
-            <DownloadIcon className="mr-2 h-5 w-5" />
-            Download All
+            <PlusIcon className="mr-2 inline h-5 w-5" />
+            Add More Files ({5 - files.length} remaining)
           </button>
-        )}
-        {someConversionsFailed && !isConvertingAll && (
-          <button
-            className="flex items-center rounded-lg bg-yellow-500 px-4 py-2 font-bold text-white transition-colors duration-300 hover:bg-yellow-600"
-            onClick={handleConvertAll}
-          >
-            <RefreshCwIcon className="mr-2 h-5 w-5" />
-            Retry Failed Conversions
-          </button>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Batch Operations */}
+      <BatchOperations
+        files={files}
+        onConvertAll={handleConvertAll}
+        onDownloadAll={handleDownloadAll}
+        onDeleteAll={handleDeleteAll}
+        isConvertingAll={isConvertingAll}
+      />
+      
+      {/* File Table */}
       <div className="overflow-x-auto rounded-lg shadow-lg">
         <table className="w-full table-auto">
           <thead>
@@ -297,6 +256,12 @@ export function FileList({ files }: FileListProps) {
               </th>
               <th className="px-4 py-3 text-left font-semibold text-primary">
                 Format
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-primary">
+                Quality
+              </th>
+              <th className="px-4 py-3 text-left font-semibold text-primary">
+                Progress
               </th>
               <th className="px-4 py-3 text-right font-semibold text-primary">
                 Actions
@@ -345,8 +310,6 @@ export function FileList({ files }: FileListProps) {
                         className="w-full cursor-pointer appearance-none rounded border border-primary/20 bg-gradient-to-r from-primary/10 to-secondary/10 px-2 py-1 text-sm transition-all duration-200 focus:border-primary/50 focus:outline-none focus:ring-1 focus:ring-primary/50"
                         value={fileState.selectedFormat}
                         onChange={(e) => {
-                          console.log('file size', file.size);
-                          console.log('onChange', e.target.value);
                           handleFormatChange(file, e.target.value);
                         }}
                         disabled={fileState.isConverting}
@@ -372,6 +335,37 @@ export function FileList({ files }: FileListProps) {
                           <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
                         </svg>
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <QualitySelector
+                      value={fileState.selectedQuality}
+                      onChange={(quality) => handleQualityChange(file, quality)}
+                      disabled={fileState.isConverting}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="w-24">
+                      {fileState.isConverting ? (
+                        <div className="space-y-1">
+                          <Progress value={fileState.progress} className="h-2" />
+                          <div className="text-xs text-center text-muted-foreground">
+                            {Math.round(fileState.progress)}%
+                          </div>
+                        </div>
+                      ) : fileState.convertedUrl ? (
+                        <div className="text-xs text-center text-green-600 font-medium">
+                          Complete
+                        </div>
+                      ) : fileState.conversionFailed ? (
+                        <div className="text-xs text-center text-red-600 font-medium">
+                          Failed
+                        </div>
+                      ) : (
+                        <div className="text-xs text-center text-muted-foreground">
+                          Ready
+                        </div>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
