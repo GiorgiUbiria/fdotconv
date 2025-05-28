@@ -1,7 +1,12 @@
 'use client';
 
 import { useDropzone } from 'react-dropzone';
-import { cn, getMaxFileSize, isValidFileType, formatFileSize } from '@/lib/utils';
+import {
+  cn,
+  getMaxFileSize,
+  isValidFileType,
+  formatFileSize,
+} from '@/lib/utils';
 import { toast } from 'sonner';
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import { getConversionOptions } from '@/lib/utils';
@@ -25,7 +30,9 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
         acceptedFiles.forEach((file) => {
           // Check file size
           if (file.size > maxFileSize) {
-            errors.push(`${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`);
+            errors.push(
+              `${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`
+            );
             return;
           }
 
@@ -40,7 +47,7 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
 
         // Show errors if any
         if (errors.length > 0) {
-          errors.forEach(error => toast.error(error));
+          errors.forEach((error) => toast.error(error));
         }
 
         // Process valid files
@@ -66,7 +73,9 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
           const { file, errors } = rejection;
           errors.forEach((error) => {
             if (error.code === 'file-too-large') {
-              toast.error(`${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`);
+              toast.error(
+                `${file.name}: File size (${formatFileSize(file.size)}) exceeds ${formatFileSize(maxFileSize)} limit`
+              );
             } else if (error.code === 'file-invalid-type') {
               toast.error(`${file.name}: Unsupported file type`);
             } else if (error.code === 'too-many-files') {
@@ -118,7 +127,8 @@ export function Dropzone({ onDrop, className }: DropzoneProps) {
             Drag and drop up to 5 files here, or click to select
           </p>
           <p className="text-sm text-muted-foreground">
-            Supports video, audio, and image files up to {formatFileSize(maxFileSize)}
+            Supports video, audio, and image files up to{' '}
+            {formatFileSize(maxFileSize)}
           </p>
           <p className="text-xs text-muted-foreground">
             All conversions are processed securely on our servers

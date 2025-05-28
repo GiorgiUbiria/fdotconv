@@ -16,13 +16,16 @@ F.Conv is a modern, web-based file format converter that handles images, videos,
 ## 🎯 Supported Formats
 
 ### Images
+
 - **Input/Output**: JPEG, PNG, WebP, GIF, BMP, TIFF, AVIF
 
 ### Videos
+
 - **Input/Output**: MP4, WebM, AVI, MOV
 - **Video to Audio**: Extract MP3, WAV, AAC, OGG from video files
 
 ### Audio
+
 - **Input/Output**: MP3, WAV, AAC, OGG
 
 ## 🚀 Quick Start
@@ -30,12 +33,14 @@ F.Conv is a modern, web-based file format converter that handles images, videos,
 ### Using Docker (Recommended)
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd fdotconv
    ```
 
 2. **Build and run with Docker Compose**
+
    ```bash
    docker-compose up --build
    ```
@@ -46,38 +51,44 @@ F.Conv is a modern, web-based file format converter that handles images, videos,
 ### Local Development
 
 1. **Prerequisites**
-   - Node.js 18+ 
+
+   - Node.js 18+
    - FFmpeg installed on your system
    - npm or yarn
 
 2. **Install FFmpeg**
-   
+
    **macOS (using Homebrew):**
+
    ```bash
    brew install ffmpeg
    ```
-   
+
    **Ubuntu/Debian:**
+
    ```bash
    sudo apt update
    sudo apt install ffmpeg
    ```
-   
+
    **Windows:**
    Download from [FFmpeg official website](https://ffmpeg.org/download.html) and add to PATH
 
 3. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 4. **Set environment variables (optional)**
+
    ```bash
    export FFMPEG_PATH=/usr/bin/ffmpeg
    export FFPROBE_PATH=/usr/bin/ffprobe
    ```
 
 5. **Run the development server**
+
    ```bash
    npm run dev
    ```
@@ -151,9 +162,11 @@ docker-compose -f docker-compose.yml up fdotconv-dev
 ## 📡 API Endpoints
 
 ### POST `/api/convert`
+
 Convert a file to the specified format.
 
 **Parameters:**
+
 - `file`: File to convert (multipart/form-data)
 - `format`: Target format (string)
 - `quality`: Quality setting - `low`, `medium`, `high` (optional, default: `medium`)
@@ -161,9 +174,11 @@ Convert a file to the specified format.
 **Response:** Converted file as binary data
 
 ### GET `/api/health`
+
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -174,9 +189,11 @@ Health check endpoint.
 ```
 
 ### GET `/api/formats`
+
 Get supported formats.
 
 **Response:**
+
 ```json
 {
   "image": ["jpeg", "png", "webp", "gif", "bmp", "tiff", "avif"],
@@ -228,7 +245,7 @@ npm run docker:run   # Run Docker container
 ## 🚧 Future Features
 
 - **Text Extractor**: OCR and document text extraction
-- **Photo Editor**: Basic image editing capabilities  
+- **Photo Editor**: Basic image editing capabilities
 - **Image Generator**: AI-powered image generation
 - **Batch Download**: Download all converted files as ZIP
 - **Progress Persistence**: Resume interrupted conversions
@@ -249,6 +266,7 @@ This project is licensed under the MIT License.
 ## 📞 Support
 
 For issues and questions:
+
 - Create an issue on GitHub
 - Check the health endpoint: `/api/health`
 - Review Docker logs: `docker-compose logs`

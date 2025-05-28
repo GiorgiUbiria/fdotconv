@@ -6,18 +6,18 @@ import { CloverIcon, CheckCircleIcon, XCircleIcon } from 'lucide-react';
 import { useEffect } from 'react';
 
 export function ConversionStatus() {
-  const { 
-    conversionStates, 
-    globalProgress, 
+  const {
+    conversionStates,
+    globalProgress,
     activeConversions,
-    updateGlobalProgress 
+    updateGlobalProgress,
   } = useConversionStore((state) => state);
 
   const files = Object.values(conversionStates);
   const totalFiles = files.length;
-  const completedFiles = files.filter(f => f.convertedUrl).length;
-  const failedFiles = files.filter(f => f.conversionFailed).length;
-  const convertingFiles = files.filter(f => f.isConverting).length;
+  const completedFiles = files.filter((f) => f.convertedUrl).length;
+  const failedFiles = files.filter((f) => f.conversionFailed).length;
+  const convertingFiles = files.filter((f) => f.isConverting).length;
 
   // Update global progress when states change
   useEffect(() => {
@@ -35,10 +35,16 @@ export function ConversionStatus() {
   };
 
   const getAverageTimeRemaining = () => {
-    const convertingWithTime = files.filter(f => f.isConverting && f.estimatedTimeRemaining);
+    const convertingWithTime = files.filter(
+      (f) => f.isConverting && f.estimatedTimeRemaining
+    );
     if (convertingWithTime.length === 0) return null;
-    
-    const avgTime = convertingWithTime.reduce((sum, f) => sum + (f.estimatedTimeRemaining || 0), 0) / convertingWithTime.length;
+
+    const avgTime =
+      convertingWithTime.reduce(
+        (sum, f) => sum + (f.estimatedTimeRemaining || 0),
+        0
+      ) / convertingWithTime.length;
     return avgTime;
   };
 
@@ -77,16 +83,11 @@ export function ConversionStatus() {
           <span className="text-muted-foreground">
             Overall Progress ({completedFiles}/{totalFiles} files)
           </span>
-          <span className="font-medium">
-            {Math.round(globalProgress)}%
-          </span>
+          <span className="font-medium">{Math.round(globalProgress)}%</span>
         </div>
-        
-        <Progress 
-          value={globalProgress} 
-          className="h-3"
-        />
-        
+
+        <Progress value={globalProgress} className="h-3" />
+
         {avgTimeRemaining && (
           <div className="text-center text-xs text-muted-foreground">
             Estimated time remaining: {formatTime(avgTimeRemaining)}
@@ -97,17 +98,22 @@ export function ConversionStatus() {
       {/* Individual file progress for active conversions */}
       {convertingFiles > 0 && (
         <div className="mt-4 space-y-2">
-          <h4 className="text-sm font-medium text-muted-foreground">Active Conversions:</h4>
+          <h4 className="text-sm font-medium text-muted-foreground">
+            Active Conversions:
+          </h4>
           {files
-            .filter(f => f.isConverting)
+            .filter((f) => f.isConverting)
             .map((fileState) => (
               <div key={fileState.file.name} className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="truncate max-w-[200px]">
-                    {fileState.file.name} → {fileState.selectedFormat.toUpperCase()}
+                  <span className="max-w-[200px] truncate">
+                    {fileState.file.name} →{' '}
+                    {fileState.selectedFormat.toUpperCase()}
                   </span>
                   <div className="flex items-center gap-2">
-                    <span className="font-medium">{Math.round(fileState.progress)}%</span>
+                    <span className="font-medium">
+                      {Math.round(fileState.progress)}%
+                    </span>
                     {fileState.estimatedTimeRemaining && (
                       <span className="text-muted-foreground">
                         {formatTime(fileState.estimatedTimeRemaining)}
@@ -115,14 +121,11 @@ export function ConversionStatus() {
                     )}
                   </div>
                 </div>
-                <Progress 
-                  value={fileState.progress} 
-                  className="h-1.5"
-                />
+                <Progress value={fileState.progress} className="h-1.5" />
               </div>
             ))}
         </div>
       )}
     </div>
   );
-} 
+}

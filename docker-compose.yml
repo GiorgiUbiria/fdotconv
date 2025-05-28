@@ -4,7 +4,7 @@ services:
   fdotconv:
     build: .
     ports:
-      - "3002:3000"
+      - '3002:3000'
     environment:
       - NODE_ENV=production
       - FFMPEG_PATH=/usr/bin/ffmpeg
@@ -13,7 +13,7 @@ services:
       - /tmp/conversions:/tmp/conversions
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/api/health']
       interval: 30s
       timeout: 10s
       retries: 3
@@ -34,4 +34,4 @@ services:
   #     - .:/app
   #     - /app/node_modules
   #     - /tmp/conversions:/tmp/conversions
-  #   command: npm run dev 
+  #   command: npm run dev

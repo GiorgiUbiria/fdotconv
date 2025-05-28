@@ -26,7 +26,10 @@ export type ConversionStore = {
   setConverting: (fileName: string) => void;
   setConverted: (fileName: string, url: string | null) => void;
   setFormat: (fileName: string, format: string) => void;
-  setQuality: (fileName: string, quality: 'fast' | 'low' | 'medium' | 'high') => void;
+  setQuality: (
+    fileName: string,
+    quality: 'fast' | 'low' | 'medium' | 'high'
+  ) => void;
   setProgress: (fileName: string, progress: number) => void;
   deleteFile: (fileName: string) => void;
   setConversionFailed: (fileName: string) => void;
@@ -51,7 +54,7 @@ export const createConversionStore = (initState = {}) => {
             state.conversionStates[fileName].conversionFailed = false;
             state.conversionStates[fileName].progress = 0;
             state.conversionStates[fileName].startTime = Date.now();
-            
+
             if (!wasConverting) {
               state.activeConversions += 1;
             }
@@ -68,9 +71,12 @@ export const createConversionStore = (initState = {}) => {
             state.conversionStates[fileName].progress = 0;
             state.conversionStates[fileName].estimatedTimeRemaining = undefined;
             state.conversionStates[fileName].startTime = undefined;
-            
+
             if (wasConverting) {
-              state.activeConversions = Math.max(0, state.activeConversions - 1);
+              state.activeConversions = Math.max(
+                0,
+                state.activeConversions - 1
+              );
             }
           }
         }),
@@ -84,9 +90,12 @@ export const createConversionStore = (initState = {}) => {
             state.conversionStates[fileName].retryCount = 0;
             state.conversionStates[fileName].progress = url ? 100 : 0;
             state.conversionStates[fileName].estimatedTimeRemaining = undefined;
-            
+
             if (wasConverting) {
-              state.activeConversions = Math.max(0, state.activeConversions - 1);
+              state.activeConversions = Math.max(
+                0,
+                state.activeConversions - 1
+              );
             }
           }
         }),
@@ -109,8 +118,11 @@ export const createConversionStore = (initState = {}) => {
       setProgress: (fileName, progress) =>
         set((state) => {
           if (state.conversionStates[fileName]) {
-            state.conversionStates[fileName].progress = Math.min(100, Math.max(0, progress));
-            
+            state.conversionStates[fileName].progress = Math.min(
+              100,
+              Math.max(0, progress)
+            );
+
             // Calculate estimated time remaining
             const fileState = state.conversionStates[fileName];
             if (fileState.startTime && progress > 0) {
@@ -137,9 +149,12 @@ export const createConversionStore = (initState = {}) => {
             state.conversionStates[fileName].conversionFailed = true;
             state.conversionStates[fileName].progress = 0;
             state.conversionStates[fileName].estimatedTimeRemaining = undefined;
-            
+
             if (wasConverting) {
-              state.activeConversions = Math.max(0, state.activeConversions - 1);
+              state.activeConversions = Math.max(
+                0,
+                state.activeConversions - 1
+              );
             }
           }
         }),
@@ -172,20 +187,21 @@ export const createConversionStore = (initState = {}) => {
             state.globalProgress = 0;
             return;
           }
-          
+
           const totalProgress = states.reduce((sum, fileState) => {
             if (fileState.convertedUrl) return sum + 100;
             if (fileState.conversionFailed) return sum + 0;
             return sum + fileState.progress;
           }, 0);
-          
+
           state.globalProgress = totalProgress / states.length;
         }),
-      reset: () => set({ 
-        conversionStates: {},
-        globalProgress: 0,
-        activeConversions: 0
-      }),
+      reset: () =>
+        set({
+          conversionStates: {},
+          globalProgress: 0,
+          activeConversions: 0,
+        }),
     }))
   );
 };

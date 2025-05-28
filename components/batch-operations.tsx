@@ -3,13 +3,13 @@
 import { useConversionStore } from '@/providers/conversion-store-provider';
 import { qualityOptions } from '@/lib/utils';
 import { QualitySelector } from './quality-selector';
-import { 
-  RefreshCwIcon, 
-  DownloadIcon, 
-  TrashIcon, 
+import {
+  RefreshCwIcon,
+  DownloadIcon,
+  TrashIcon,
   SettingsIcon,
   PlayIcon,
-  PauseIcon 
+  PauseIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -22,29 +22,33 @@ interface BatchOperationsProps {
   isConvertingAll: boolean;
 }
 
-export function BatchOperations({ 
-  files, 
-  onConvertAll, 
-  onDownloadAll, 
-  onDeleteAll, 
-  isConvertingAll 
+export function BatchOperations({
+  files,
+  onConvertAll,
+  onDownloadAll,
+  onDeleteAll,
+  isConvertingAll,
 }: BatchOperationsProps) {
   const { conversionStates, setQuality } = useConversionStore((state) => state);
   const [showBatchSettings, setShowBatchSettings] = useState(false);
-  const [globalQuality, setGlobalQuality] = useState<'fast' | 'low' | 'medium' | 'high'>('medium');
+  const [globalQuality, setGlobalQuality] = useState<
+    'fast' | 'low' | 'medium' | 'high'
+  >('medium');
 
-  const allConversionsComplete = files.length > 0 && 
+  const allConversionsComplete =
+    files.length > 0 &&
     files.every((file) => conversionStates[file.name]?.convertedUrl);
-  
-  const someConversionsFailed = files.length > 0 && 
+
+  const someConversionsFailed =
+    files.length > 0 &&
     files.some((file) => conversionStates[file.name]?.conversionFailed);
 
-  const activeConversions = files.filter(file => 
-    conversionStates[file.name]?.isConverting
+  const activeConversions = files.filter(
+    (file) => conversionStates[file.name]?.isConverting
   ).length;
 
   const handleApplyGlobalQuality = () => {
-    files.forEach(file => {
+    files.forEach((file) => {
       if (!conversionStates[file.name]?.isConverting) {
         setQuality(file.name, globalQuality);
       }
@@ -60,10 +64,12 @@ export function BatchOperations({
       {/* Batch Settings Panel */}
       {showBatchSettings && (
         <div className="rounded-lg border border-primary/20 bg-gradient-to-r from-primary/5 to-secondary/5 p-4">
-          <h3 className="mb-3 text-lg font-semibold text-primary">Batch Settings</h3>
+          <h3 className="mb-3 text-lg font-semibold text-primary">
+            Batch Settings
+          </h3>
           <div className="flex items-center gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
+              <label className="mb-2 block text-sm font-medium text-muted-foreground">
                 Apply Quality to All Files
               </label>
               <QualitySelector
@@ -152,4 +158,4 @@ export function BatchOperations({
       </div>
     </div>
   );
-} 
+}

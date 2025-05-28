@@ -98,9 +98,10 @@ export function FileList({ files }: FileListProps) {
       toast.loading(`Converting ${file.name}...`, {
         id: `converting-${file.name}`,
       });
-      
+
       const fileState = conversionStates[file.name];
-      const format = fileState?.selectedFormat || getConversionOptions(file.type)[0] || '';
+      const format =
+        fileState?.selectedFormat || getConversionOptions(file.type)[0] || '';
       const quality = fileState?.selectedQuality || 'medium';
 
       conversionPromises.current[file.name] = (async (): Promise<
@@ -111,9 +112,9 @@ export function FileList({ files }: FileListProps) {
           const url = await convertFile(file, format, quality, (progress) => {
             setProgress(file.name, progress);
           });
-          
+
           setConverted(file.name, url);
-          
+
           // Set download timer for all file types
           setDownloadTimers((prev) => ({ ...prev, [file.name]: 10 }));
           const timer = setInterval(() => {
@@ -126,7 +127,7 @@ export function FileList({ files }: FileListProps) {
               return { ...prev, [file.name]: newTime };
             });
           }, 1000);
-          
+
           return url;
         } catch (error) {
           console.error(`Conversion failed for ${file.name}:`, error);
@@ -141,7 +142,13 @@ export function FileList({ files }: FileListProps) {
 
       return conversionPromises.current[file.name];
     },
-    [conversionStates, setConverting, setConverted, setConversionFailed, setProgress]
+    [
+      conversionStates,
+      setConverting,
+      setConverted,
+      setConversionFailed,
+      setProgress,
+    ]
   );
 
   const handleConvertAll = useCallback(() => {
@@ -209,10 +216,10 @@ export function FileList({ files }: FileListProps) {
       <h1 className="mb-6 bg-gradient-to-r from-primary to-secondary bg-clip-text text-3xl font-bold text-primary text-transparent">
         File List
       </h1>
-      
+
       {/* Conversion Status Bar */}
       <ConversionStatus />
-      
+
       {/* Add Files Button */}
       {files.length < 5 && (
         <div className="mb-6">
@@ -242,7 +249,7 @@ export function FileList({ files }: FileListProps) {
         onDeleteAll={handleDeleteAll}
         isConvertingAll={isConvertingAll}
       />
-      
+
       {/* File Table */}
       <div className="overflow-x-auto rounded-lg shadow-lg">
         <table className="w-full table-auto">
@@ -348,21 +355,24 @@ export function FileList({ files }: FileListProps) {
                     <div className="w-24">
                       {fileState.isConverting ? (
                         <div className="space-y-1">
-                          <Progress value={fileState.progress} className="h-2" />
-                          <div className="text-xs text-center text-muted-foreground">
+                          <Progress
+                            value={fileState.progress}
+                            className="h-2"
+                          />
+                          <div className="text-center text-xs text-muted-foreground">
                             {Math.round(fileState.progress)}%
                           </div>
                         </div>
                       ) : fileState.convertedUrl ? (
-                        <div className="text-xs text-center text-green-600 font-medium">
+                        <div className="text-center text-xs font-medium text-green-600">
                           Complete
                         </div>
                       ) : fileState.conversionFailed ? (
-                        <div className="text-xs text-center text-red-600 font-medium">
+                        <div className="text-center text-xs font-medium text-red-600">
                           Failed
                         </div>
                       ) : (
-                        <div className="text-xs text-center text-muted-foreground">
+                        <div className="text-center text-xs text-muted-foreground">
                           Ready
                         </div>
                       )}

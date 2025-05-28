@@ -18,22 +18,22 @@ const conversionProgress = new Map<string, number>();
 
 app.post('/convert', async (c) => {
   console.log('Received conversion request');
-  
+
   let fileName = 'unknown';
-  
+
   try {
     const formData = await c.req.formData();
     const file = formData.get('file') as File;
     const format = formData.get('format') as string;
     const quality = (formData.get('quality') as string) || 'medium';
-    
+
     if (!file || !format) {
       return c.json({ error: 'Missing file or format' }, 400);
     }
 
     const { name, type: fileType, size } = file;
     fileName = name; // Store for error handling
-    
+
     // Validate file size (100MB limit)
     const maxSize = 100 * 1024 * 1024; // 100MB
     if (size > maxSize) {
@@ -42,7 +42,7 @@ app.post('/convert', async (c) => {
 
     // Validate file type
     const supportedTypes = ['image/', 'video/', 'audio/'];
-    if (!supportedTypes.some(type => fileType.startsWith(type))) {
+    if (!supportedTypes.some((type) => fileType.startsWith(type))) {
       return c.json({ error: 'Unsupported file type' }, 400);
     }
 
@@ -51,7 +51,9 @@ app.post('/convert', async (c) => {
       return c.json({ error: 'Invalid quality setting' }, 400);
     }
 
-    console.log(`Processing file: ${name} (${fileType}) to format: ${format} with quality: ${quality}`);
+    console.log(
+      `Processing file: ${name} (${fileType}) to format: ${format} with quality: ${quality}`
+    );
 
     // Initialize progress tracking IMMEDIATELY before any async processing
     conversionProgress.set(name, 0);
@@ -59,18 +61,24 @@ app.post('/convert', async (c) => {
 
     // Start performance monitoring
     const inputFormat = path.extname(name).slice(1) || 'unknown';
-    performanceMonitor.startConversion(name, size, inputFormat, format, quality);
+    performanceMonitor.startConversion(
+      name,
+      size,
+      inputFormat,
+      format,
+      quality
+    );
 
     // Create temporary files
     const inputExt = path.extname(name);
-    const tmpInputFile = tmp.fileSync({ 
+    const tmpInputFile = tmp.fileSync({
       postfix: inputExt,
-      prefix: 'input_'
+      prefix: 'input_',
     });
-    
-    const tmpOutputFile = tmp.fileSync({ 
+
+    const tmpOutputFile = tmp.fileSync({
       postfix: `.${format}`,
-      prefix: 'output_'
+      prefix: 'output_',
     });
 
     try {
@@ -80,10 +88,7 @@ app.post('/convert', async (c) => {
       const writeStream = createWriteStream(tmpInputFile.name);
 
       await new Promise((resolve, reject) => {
-        readStream
-          .pipe(writeStream)
-          .on('finish', resolve)
-          .on('error', reject);
+        readStream.pipe(writeStream).on('finish', resolve).on('error', reject);
       });
 
       console.log('File written to temporary location, starting conversion');
@@ -99,7 +104,7 @@ app.post('/convert', async (c) => {
           onProgress: (progress) => {
             console.log(`Conversion progress: ${progress.toFixed(1)}%`);
             conversionProgress.set(name, progress);
-          }
+          },
         });
       });
 
@@ -109,27 +114,33 @@ app.post('/convert', async (c) => {
 
       // Read converted file
       const convertedBuffer = await fs.readFile(tmpOutputFile.name);
-      
+
       // Get proper MIME type
-      const mimeType = mime.lookup(tmpOutputFile.name) || 'application/octet-stream';
-      
+      const mimeType =
+        mime.lookup(tmpOutputFile.name) || 'application/octet-stream';
+
       // Generate filename
       const baseName = path.parse(name).name;
       const outputFileName = `${baseName}.${format}`;
 
       // Set response headers and return file
       c.header('Content-Type', mimeType);
-      c.header('Content-Disposition', `attachment; filename="${outputFileName}"`);
+      c.header(
+        'Content-Disposition',
+        `attachment; filename="${outputFileName}"`
+      );
       c.header('Content-Length', convertedBuffer.length.toString());
 
-      console.log(`Conversion completed successfully: ${name} -> ${outputFileName}`);
-      
+      console.log(
+        `Conversion completed successfully: ${name} -> ${outputFileName}`
+      );
+
       // End performance monitoring
       performanceMonitor.endConversion(name, true);
-      
+
       // Clean up progress tracking
       conversionProgress.delete(name);
-      
+
       // Return the file as a Response
       return new Response(convertedBuffer, {
         headers: {
@@ -138,7 +149,6 @@ app.post('/convert', async (c) => {
           'Content-Length': convertedBuffer.length.toString(),
         },
       });
-
     } finally {
       // Clean up temporary files
       try {
@@ -148,52 +158,57 @@ app.post('/convert', async (c) => {
         console.warn('Error cleaning up temporary files:', cleanupError);
       }
     }
-
   } catch (err) {
     console.error('Conversion error:', err);
-    
+
     // End performance monitoring for failed conversion
-    const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+    const errorMessage =
+      err instanceof Error ? err.message : 'An unexpected error occurred';
     performanceMonitor.endConversion(fileName, false, errorMessage);
-    
+
     // Clean up progress tracking
     conversionProgress.delete(fileName);
-    
-    return c.json({
-      error: 'Conversion failed',
-      details: errorMessage,
-    }, 500);
+
+    return c.json(
+      {
+        error: 'Conversion failed',
+        details: errorMessage,
+      },
+      500
+    );
   }
 });
 
 // Progress endpoint using polling instead of SSE
 app.get('/progress/:fileName', async (c) => {
   const fileName = decodeURIComponent(c.req.param('fileName') || '');
-  
+
   if (!fileName) {
     return c.json({ error: 'Missing fileName parameter' }, 400);
   }
 
   const progress = conversionProgress.get(fileName) || 0;
   const isActive = conversionProgress.has(fileName);
-  
-  console.log(`Progress check for ${fileName}: ${progress}% (active: ${isActive})`);
-  
-  return c.json({ 
-    progress, 
-    fileName, 
+
+  console.log(
+    `Progress check for ${fileName}: ${progress}% (active: ${isActive})`
+  );
+
+  return c.json({
+    progress,
+    fileName,
     isActive,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   });
 });
 
 // Health check endpoint
 app.get('/health', (c) => {
-  return c.json({ 
-    status: 'ok', 
+  return c.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     ffmpeg: process.env.FFMPEG_PATH || 'ffmpeg',
-    ffprobe: process.env.FFPROBE_PATH || 'ffprobe'
+    ffprobe: process.env.FFPROBE_PATH || 'ffprobe',
   });
 });
 
@@ -202,9 +217,9 @@ app.get('/formats', (c) => {
   const formats = {
     image: ['jpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'avif'],
     video: ['mp4', 'webm', 'avi', 'mov'],
-    audio: ['mp3', 'wav', 'aac', 'ogg']
+    audio: ['mp3', 'wav', 'aac', 'ogg'],
   };
-  
+
   return c.json(formats);
 });
 
